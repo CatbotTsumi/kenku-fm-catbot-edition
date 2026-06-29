@@ -74,4 +74,16 @@ export class BrowserViewManagerPreload {
   reload(id: number) {
     ipcRenderer.send("BROWSER_VIEW_RELOAD", id);
   }
+
+  zoomIn(id: number) {
+    ipcRenderer.send("BROWSER_VIEW_ZOOM_IN", id);
+  }
+
+  zoomOut(id: number) {
+    ipcRenderer.send("BROWSER_VIEW_ZOOM_OUT", id);
+  }
+
+  resetZoom(id: number) {
+    ipcRenderer.send("BROWSER_VIEW_RESET_ZOOM", id);
+  }
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useDispatch } from "react-redux";
 
 import Snackbar from "@mui/material/Snackbar";
 import Stack from "@mui/material/Stack";
@@ -13,6 +14,13 @@ import icon from "../../assets/icon.svg";
 
 import "./App.css";
 import Typography from "@mui/material/Typography";
+import { APP_DISPLAY_NAME } from "../../constants/appName";
+import {
+  setBotProfile,
+  setStatus,
+} from "../features/connection/connectionSlice";
+
+const DEFAULT_TITLE = APP_DISPLAY_NAME;
 
 const WallPaper = styled("div")({
   position: "absolute",
@@ -26,6 +34,7 @@ const WallPaper = styled("div")({
 });
 
 export function App() {
+  const dispatch = useDispatch();
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
   const [fatalError, setFatalError] = useState<string>();
@@ -43,13 +52,29 @@ export function App() {
       const error = args[0];
       setFatalError(error);
     });
+    window.kenku.on("DISCORD_READY", (args) => {
+      const profile = args[0] as
+        | { name: string; avatarUrl: string }
+        | undefined;
+      dispatch(setStatus("ready"));
+      if (profile) {
+        dispatch(setBotProfile(profile));
+        document.title = profile.name;
+      }
+    });
+    window.kenku.on("DISCORD_DISCONNECTED", () => {
+      dispatch(setStatus("disconnected"));
+      document.title = DEFAULT_TITLE;
+    });
 
     return () => {
       window.kenku.removeAllListeners("MESSAGE");
       window.kenku.removeAllListeners("ERROR");
       window.kenku.removeAllListeners("FATAL_ERROR");
+      window.kenku.removeAllListeners("DISCORD_READY");
+      window.kenku.removeAllListeners("DISCORD_DISCONNECTED");
     };
-  }, []);
+  }, [dispatch]);
 
   if (fatalError) {
     return (

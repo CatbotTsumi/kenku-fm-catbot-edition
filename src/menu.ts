@@ -61,6 +61,37 @@ const template: any = [
     submenu: [
       ...(app.isPackaged ? [] : [{ role: "toggleDevTools" }]),
       { role: "togglefullscreen" },
+      { type: "separator" },
+      {
+        label: "Zoom In",
+        accelerator: isMac ? "Cmd+=" : "Ctrl+=",
+        click: () => {
+          const windows = BrowserWindow.getAllWindows();
+          for (let window of windows) {
+            window.webContents.send("BROWSER_VIEW_ZOOM_IN");
+          }
+        },
+      },
+      {
+        label: "Zoom Out",
+        accelerator: isMac ? "Cmd+-" : "Ctrl+-",
+        click: () => {
+          const windows = BrowserWindow.getAllWindows();
+          for (let window of windows) {
+            window.webContents.send("BROWSER_VIEW_ZOOM_OUT");
+          }
+        },
+      },
+      {
+        label: "Reset Zoom",
+        accelerator: isMac ? "Cmd+0" : "Ctrl+0",
+        click: () => {
+          const windows = BrowserWindow.getAllWindows();
+          for (let window of windows) {
+            window.webContents.send("BROWSER_VIEW_RESET_ZOOM");
+          }
+        },
+      },
     ],
   },
   {

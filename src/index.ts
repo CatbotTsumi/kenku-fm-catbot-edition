@@ -1,4 +1,5 @@
 import os from "os";
+import path from "path";
 import {
   app,
   BrowserWindow,
@@ -12,14 +13,21 @@ import "./menu";
 import icon from "./assets/icon.png";
 import { getMalformedUserAgent, getUserAgent } from "./main/userAgent";
 import { SessionManager } from "./main/managers/SessionManager";
-import { runAutoUpdate } from "./autoUpdate";
+import { runAutoUpdate, checkForReleaseUpdate, getCachedReleaseUrl } from "./autoUpdate";
 import { getSavedBounds, saveWindowBounds } from "./bounds";
+import { APP_DISPLAY_NAME } from "./constants/appName";
 
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 let window: BrowserWindow | null = null;
+
+// Share official Kenku FM profile (bookmarks, token, playlists) unless isolated dev.
+// Set KENKU_DEV_ISOLATED=1 for %APPDATA%\kenku-fm. Do not run Catbot + official Kenku FM at once.
+if (process.env.KENKU_DEV_ISOLATED !== "1") {
+  app.setPath("userData", path.join(app.getPath("appData"), "Kenku FM"));
+}
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require("electron-squirrel-startup")) {
@@ -28,8 +36,8 @@ if (require("electron-squirrel-startup")) {
 }
 
 const createWindow = (): BrowserWindow => {
-  const minWidth = 800;
-  const minHeight = 600;
+  const minWidth = 480;
+  const minHeight = 360;
 
   // Create the browser window.
   const { bounds, maximized } = getSavedBounds(minWidth, minHeight);
@@ -110,6 +118,8 @@ if (!hasSingleInstanceLock) {
   // initialization and is ready to create browser windows.
   // Some APIs can only be used after this event occurs.
   app.whenReady().then(async () => {
+    app.setName(APP_DISPLAY_NAME);
+
     let hasWidevineError = false;
 
     try {
@@ -175,5 +185,16 @@ if (!hasSingleInstanceLock) {
     await session.defaultSession.clearStorageData({
       storages: ["cookies", "shadercache", "cachestorage"],
     });
+  });
+
+  ipcMain.handle("UPDATE_CHECK", async () => {
+    if (!app.isPackaged) {
+      return { available: false, releaseUrl: getCachedReleaseUrl() };
+    }
+    return checkForReleaseUpdate();
+  });
+
+  ipcMain.handle("UPDATE_OPEN_RELEASE", async () => {
+    await shell.openExternal(getCachedReleaseUrl());
   });
 }

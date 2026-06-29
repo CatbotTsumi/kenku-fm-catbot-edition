@@ -1,6 +1,10 @@
 import { createWindowsInstaller } from "electron-winstaller";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { exit } from "node:process";
+
+const require = createRequire(import.meta.url);
+const { productName } = require("../../scripts/build-config.cjs");
 
 async function createApp(version, keypairAlias, certfile) {
   const __dirname = import.meta.dirname;
@@ -8,7 +12,7 @@ async function createApp(version, keypairAlias, certfile) {
 
   try {
     const params = {
-      appDirectory: path.join(parent, "out", `Kenku FM-win32-${process.arch}`),
+      appDirectory: path.join(parent, "out", `${productName}-win32-${process.arch}`),
       outputDirectory: path.join(parent, "out", "windows"),
       loadingGif: path.join(parent, "src", "assets", "loading.gif"),
       setupIcon: path.join(parent, "src", "assets", "setup.ico"),

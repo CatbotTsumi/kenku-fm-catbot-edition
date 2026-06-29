@@ -1,15 +1,17 @@
 {
   "name": "kenku-fm",
-  "productName": "Kenku FM",
-  "version": "1.5.5",
+  "productName": "Kenku FM Catbot Edition",
+  "version": "1.5.6",
   "description": "Online tabletop audio sharing for Discord",
   "main": "./.webpack/main",
   "scripts": {
     "start": "electron-forge start",
+    "postinstall": "node scripts/ensure-electron-win.js",
     "package": "env-cmd electron-forge package",
     "make": "env-cmd electron-forge make",
     "publish": "env-cmd electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx ."
+    "lint": "eslint --ext .ts,.tsx .",
+    "copy-settings": "node scripts/copy-installed-settings.mjs"
   },
   "keywords": [],
   "author": {
@@ -17,6 +19,10 @@
     "email": "support@owlbear.rodeo"
   },
   "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CatbotTsumi/kenku-fm-catbot-edition.git"
+  },
   "config": {
     "forge": "./forge.config.js"
   },
@@ -87,7 +93,6 @@
     "redux-persist": "^6.0.0",
     "tiny-typed-emitter": "^2.1.0",
     "uuid": "^10.0.0",
-    "ws": "^8.19.0",
-    "zlib-sync": "^0.1.10"
+    "ws": "^8.19.0"
   }
 }

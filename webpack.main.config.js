@@ -1,3 +1,5 @@
+const path = require("path");
+
 module.exports = {
   /**
    * This is the main entry point for your application, it's the first file
@@ -10,11 +12,13 @@ module.exports = {
   },
   resolve: {
     extensions: [".js", ".ts", ".jsx", ".tsx", ".css", ".json"],
+    alias: {
+      "zlib-sync": path.resolve(__dirname, "scripts/zlib-sync-stub.cjs"),
+    },
   },
   externals: {
     opusscript: "commonjs2 opusscript",
     "prism-media": "commonjs2 prism-media",
     "@snazzah/davey": "commonjs2 @snazzah/davey",
-    "zlib-sync": "commonjs2 zlib-sync",
   },
 };

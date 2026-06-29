@@ -1,0 +1,94 @@
+# Tag push (v*.*.*) → build and publish unsigned GitHub Release assets.
+# Squirrel RELEASES + nupkg enable fork auto-update via update.electronjs.org.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+
+      - name: Enable Yarn
+        run: corepack enable
+
+      - name: Sync package version from tag
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          node -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p));j.version=process.argv[1];fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');" "$VERSION"
+
+      - name: Configure castlabs Electron mirror
+        shell: bash
+        run: |
+          echo "ELECTRON_MIRROR=https://github.com/castlabs/electron-releases/releases/download/" > .env
+
+      - name: Install dependencies
+        run: yarn install --non-interactive
+
+      - name: Build Windows installer
+        run: yarn make
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            out/make/squirrel.windows/x64/*.exe
+            out/make/squirrel.windows/x64/*.nupkg
+            out/make/squirrel.windows/x64/RELEASES
+
+  release-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+
+      - name: Enable Yarn
+        run: corepack enable
+
+      - name: Sync package version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          node -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p));j.version=process.argv[1];fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');" "$VERSION"
+
+      - name: Configure castlabs Electron mirror
+        run: |
+          echo "ELECTRON_MIRROR=https://github.com/castlabs/electron-releases/releases/download/" > .env
+
+      - name: Install dependencies
+        run: yarn install --non-interactive
+
+      - name: Build Linux packages
+        run: yarn make
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            out/make/deb/x64/*.deb
+            out/make/zip/linux/x64/*.zip
+            out/make/rpm/x64/*.rpm

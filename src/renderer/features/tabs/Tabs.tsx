@@ -169,6 +169,21 @@ export function Tabs() {
         dispatch(selectTab(prevTabId));
       }
     });
+    window.kenku.on("BROWSER_VIEW_ZOOM_IN", () => {
+      if (tabs.selectedTab) {
+        window.kenku.zoomIn(tabs.selectedTab);
+      }
+    });
+    window.kenku.on("BROWSER_VIEW_ZOOM_OUT", () => {
+      if (tabs.selectedTab) {
+        window.kenku.zoomOut(tabs.selectedTab);
+      }
+    });
+    window.kenku.on("BROWSER_VIEW_RESET_ZOOM", () => {
+      if (tabs.selectedTab) {
+        window.kenku.resetZoom(tabs.selectedTab);
+      }
+    });
 
     return () => {
       window.kenku.removeAllListeners("BROWSER_VIEW_DID_NAVIGATE");
@@ -178,6 +193,9 @@ export function Tabs() {
       window.kenku.removeAllListeners("BROWSER_VIEW_MEDIA_PAUSED");
       window.kenku.removeAllListeners("BROWSER_VIEW_NEW_TAB");
       window.kenku.removeAllListeners("BROWSER_VIEW_CLOSE_TAB");
+      window.kenku.removeAllListeners("BROWSER_VIEW_ZOOM_IN");
+      window.kenku.removeAllListeners("BROWSER_VIEW_ZOOM_OUT");
+      window.kenku.removeAllListeners("BROWSER_VIEW_RESET_ZOOM");
     };
   }, [player.tab.id, tabs]);
 
@@ -192,7 +210,7 @@ export function Tabs() {
         bounds.height,
       );
     }
-  }, [settings.urlBarEnabled, isPlayer, tabs.selectedTab]);
+  }, [settings.urlBarEnabled, settings.sidebarCollapsed, isPlayer, tabs.selectedTab]);
 
   function handleURLChange(url: string) {
     dispatch(editTab({ id: tabs.selectedTab, url }));

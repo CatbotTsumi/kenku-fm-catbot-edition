@@ -56,11 +56,43 @@ const migrations: any = {
       },
     };
   },
+  5: (state: RootState): RootState => {
+    return {
+      ...state,
+      settings: {
+        ...state.settings,
+        sidebarCollapsed: false,
+      },
+    };
+  },
+  6: (state: RootState): RootState => {
+    return {
+      ...state,
+      settings: {
+        ...state.settings,
+        hiddenGuildIds: [],
+        hiddenChannelIds: [],
+      },
+    };
+  },
+  7: (state: RootState): RootState => {
+    return {
+      ...state,
+      settings: {
+        ...state.settings,
+        bookmarksSectionOpen: true,
+        inputsSectionOpen: true,
+        outputsSectionOpen: true,
+        collapsedGuildIds: [],
+        guildOrder: [],
+      },
+    };
+  },
 };
 
 const persistConfig = {
   key: "root",
-  version: 4,
+  version: 7,
   storage,
   whitelist: ["bookmarks", "settings"],
   migrate: createMigrate(migrations, { debug: false }),

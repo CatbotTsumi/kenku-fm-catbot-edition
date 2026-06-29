@@ -18,15 +18,18 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
 import List from "@mui/material/List";
 import Stack from "@mui/material/Stack";
 
 import { RootState } from "../../app/store";
+import { setSidebarCollapsed } from "../settings/settingsSlice";
 import { moveTab, Tab } from "./tabsSlice";
 
 import { SortableItem } from "../../common/SortableItem";
 import { WindowControls } from "../../common/WindowControls";
 import { showWindowControls } from "../../common/showWindowControls";
+import { AppLogo } from "../../common/AppLogo";
 import { PlayerTab } from "../player/PlayerTab";
 import { AddTabButton } from "./AddTabButton";
 import { TabItem } from "./TabItem";
@@ -35,6 +38,7 @@ export function TabBar() {
   const dispatch = useDispatch();
 
   const tabs = useSelector((state: RootState) => state.tabs);
+  const settings = useSelector((state: RootState) => state.settings);
 
   const pointerSensor = useSensor(PointerSensor, {
     activationConstraint: { distance: 10 },
@@ -129,6 +133,16 @@ export function TabBar() {
       }
       sx={{ WebkitAppRegion: "drag" }}
     >
+      {showWindowControls && settings.sidebarCollapsed && (
+        <IconButton
+          onClick={() => dispatch(setSidebarCollapsed(false))}
+          sx={{ WebkitAppRegion: "no-drag", m: 0.5, p: 0.5, alignSelf: "center" }}
+        >
+          <Box sx={{ width: "36px", height: "36px" }}>
+            <AppLogo />
+          </Box>
+        </IconButton>
+      )}
       <List
         disablePadding
         sx={{

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 
 import Collapse from "@mui/material/Collapse";
 import List from "@mui/material/List";
@@ -11,19 +11,18 @@ import ExpandMore from "@mui/icons-material/ExpandMoreRounded";
 import { RootState } from "../../app/store";
 import { useSelector, useDispatch } from "react-redux";
 import { addInput, removeInput, setDevices, setInput } from "./inputSlice";
+import { setInputsSectionOpen } from "../settings/settingsSlice";
 
 import { InputListItem } from "./InputListItem";
 
 export function InputListItems() {
-  const [open, setOpen] = useState(true);
-
-  function toggleOpen() {
-    setOpen(!open);
-  }
-
   const input = useSelector((state: RootState) => state.input);
   const settings = useSelector((state: RootState) => state.settings);
   const dispatch = useDispatch();
+
+  function toggleOpen() {
+    dispatch(setInputsSectionOpen(!settings.inputsSectionOpen));
+  }
 
   useEffect(() => {
     navigator.mediaDevices.enumerateDevices().then((devices) => {
@@ -83,9 +82,9 @@ export function InputListItems() {
         <ListItemText
           primary={settings.multipleInputsEnabled ? "Inputs" : "Input"}
         />
-        {open ? <ExpandLess /> : <ExpandMore />}
+        {settings.inputsSectionOpen ? <ExpandLess /> : <ExpandMore />}
       </ListItemButton>
-      <Collapse in={open} timeout="auto" unmountOnExit>
+      <Collapse in={settings.inputsSectionOpen} timeout="auto" unmountOnExit>
         <List component="div" disablePadding>
           {input.devices.map((device) => (
             <InputListItem

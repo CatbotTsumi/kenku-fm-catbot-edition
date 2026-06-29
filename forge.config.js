@@ -14,13 +14,15 @@ const config = {
         name: "kenku_fm",
         setupIcon: path.join(__dirname, "src", "assets", "setup.ico"),
         loadingGif: path.join(__dirname, "src", "assets", "loading.gif"),
+        remoteReleases:
+          "https://github.com/CatbotTsumi/kenku-fm-catbot-edition",
       },
     },
     {
       name: "@electron-forge/maker-deb",
       config: {
         name: "kenku_fm",
-        productName: "Kenku FM",
+        productName: "Kenku FM Catbot Edition",
         homepage: "https://kenku.fm",
         icon: path.join(__dirname, "src", "assets", "icons", "256x256.png"),
       },
@@ -33,7 +35,7 @@ const config = {
       name: "@electron-forge/maker-rpm",
       config: {
         name: "kenku_fm",
-        productName: "Kenku FM",
+        productName: "Kenku FM Catbot Edition",
         homepage: "https://kenku.fm",
         icon: path.join(__dirname, "src", "assets", "icons", "256x256.png"),
       },
@@ -44,8 +46,8 @@ const config = {
       name: "@electron-forge/publisher-github",
       config: {
         repository: {
-          owner: "owlbear-rodeo",
-          name: "kenku-fm",
+          owner: "CatbotTsumi",
+          name: "kenku-fm-catbot-edition",
         },
         prerelease: false,
         draft: false,
@@ -92,7 +94,7 @@ const config = {
     {
       name: "@timfish/forge-externals-plugin",
       config: {
-        externals: ["opusscript", "prism-media", "@snazzah/davey", "zlib-sync"],
+        externals: ["opusscript", "prism-media", "@snazzah/davey"],
         includeDeps: true,
       },
     },

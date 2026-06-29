@@ -22,7 +22,12 @@ type Channel =
   | "BROWSER_VIEW_MEDIA_PAUSED"
   | "BROWSER_VIEW_NEW_TAB"
   | "BROWSER_VIEW_CLOSE_TAB"
-  | "PLAYER_REMOTE_ENABLED";
+  | "BROWSER_VIEW_ZOOM_IN"
+  | "BROWSER_VIEW_ZOOM_OUT"
+  | "BROWSER_VIEW_RESET_ZOOM"
+  | "PLAYER_REMOTE_ENABLED"
+  | "UPDATE_AVAILABLE"
+  | "UPDATE_OFFICIAL_CLEAR";
 
 const validChannels: Channel[] = [
   "ERROR",
@@ -42,7 +47,12 @@ const validChannels: Channel[] = [
   "BROWSER_VIEW_MEDIA_PAUSED",
   "BROWSER_VIEW_NEW_TAB",
   "BROWSER_VIEW_CLOSE_TAB",
+  "BROWSER_VIEW_ZOOM_IN",
+  "BROWSER_VIEW_ZOOM_OUT",
+  "BROWSER_VIEW_RESET_ZOOM",
   "PLAYER_REMOTE_ENABLED",
+  "UPDATE_AVAILABLE",
+  "UPDATE_OFFICIAL_CLEAR",
 ];
 
 // Capture audio when new views are loaded
@@ -62,6 +72,9 @@ const api = {
   },
   leaveChannel: (channelId: string) => {
     ipcRenderer.send("DISCORD_LEAVE_CHANNEL", channelId);
+  },
+  leaveGuild: (guildId: string) => {
+    ipcRenderer.send("DISCORD_LEAVE_GUILD", guildId);
   },
   createBrowserView: async (
     url: string,
@@ -116,6 +129,15 @@ const api = {
   reload: (id: number) => {
     viewManager.reload(id);
   },
+  zoomIn: (id: number) => {
+    viewManager.zoomIn(id);
+  },
+  zoomOut: (id: number) => {
+    viewManager.zoomOut(id);
+  },
+  resetZoom: (id: number) => {
+    viewManager.resetZoom(id);
+  },
   on: (channel: Channel, callback: (...args: any[]) => any) => {
     if (validChannels.includes(channel)) {
       const newCallback = (_: any, ...args: any[]) => callback(args);
@@ -169,6 +191,16 @@ const api = {
   },
   clearCache: () => {
     return ipcRenderer.invoke("CLEAR_CACHE");
+  },
+  checkForUpdate: () => {
+    return ipcRenderer.invoke("UPDATE_CHECK") as Promise<{
+      available: boolean;
+      latestVersion?: string;
+      releaseUrl: string;
+    }>;
+  },
+  openReleasePage: () => {
+    return ipcRenderer.invoke("UPDATE_OPEN_RELEASE");
   },
   platform: ipcRenderer.sendSync("GET_PLATFORM") as string,
   version: ipcRenderer.sendSync("GET_VERSION") as string,

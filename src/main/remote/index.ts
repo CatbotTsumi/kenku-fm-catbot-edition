@@ -7,6 +7,8 @@ import { play as soundboardPlay } from "./routes/soundboard/play";
 import { stop as soundboardStop } from "./routes/soundboard/stop";
 import { playback as soundboardPlayback } from "./routes/soundboard/playback";
 
+import { APP_DISPLAY_NAME } from "../../constants/appName";
+
 export type ReplyError = {
   statusCode: number;
   error: string;
@@ -16,7 +18,7 @@ export type ReplyError = {
 export const VIEW_ERROR: ReplyError = {
   statusCode: 503,
   error: "Service Unavailable",
-  message: "Unable to connect to Kenku FM",
+  message: `Unable to connect to ${APP_DISPLAY_NAME}`,
 };
 
 export function registerRemote(manager: PlayerManager) {

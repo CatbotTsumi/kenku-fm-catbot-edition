@@ -1,0 +1,90 @@
+# Build Catbot Edition on every push to main (and PRs). Artifacts are unsigned dev builds.
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+
+      - name: Enable Yarn
+        run: corepack enable
+
+      - name: Configure castlabs Electron mirror
+        shell: bash
+        run: |
+          echo "ELECTRON_MIRROR=https://github.com/castlabs/electron-releases/releases/download/" > .env
+
+      - name: Install dependencies
+        run: yarn install --non-interactive
+
+      - name: Build Windows installer
+        run: yarn make
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          if-no-files-found: error
+          path: |
+            out/make/squirrel.windows/x64/**
+            out/Kenku FM Catbot Edition-win32-x64/**
+
+  build-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+
+      - name: Enable Yarn
+        run: corepack enable
+
+      - name: Configure castlabs Electron mirror
+        run: |
+          echo "ELECTRON_MIRROR=https://github.com/castlabs/electron-releases/releases/download/" > .env
+
+      - name: Install dependencies
+        run: yarn install --non-interactive
+
+      - name: Build Linux packages
+        run: yarn make
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x64
+          if-no-files-found: warn
+          path: |
+            out/make/deb/x64/**
+            out/make/zip/linux/x64/**
+            out/make/rpm/x64/**
+            out/kenku-fm-*-linux-x64/**

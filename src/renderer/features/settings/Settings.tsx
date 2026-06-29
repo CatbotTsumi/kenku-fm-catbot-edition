@@ -72,20 +72,6 @@ export function Settings({ open, onClose }: SettingsProps) {
     };
   }, []);
 
-  useEffect(() => {
-    window.kenku.on("DISCORD_READY", () => {
-      dispatch(setStatus("ready"));
-    });
-    window.kenku.on("DISCORD_DISCONNECTED", () => {
-      dispatch(setStatus("disconnected"));
-    });
-
-    return () => {
-      window.kenku.removeAllListeners("DISCORD_READY");
-      window.kenku.removeAllListeners("DISCORD_DISCONNECTED");
-    };
-  }, [dispatch]);
-
   const discordSettings = (
     <Stack spacing={1}>
       <TextField

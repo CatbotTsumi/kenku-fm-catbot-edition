@@ -1,6 +1,10 @@
 import { sign } from "@electron/osx-sign";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { exit } from "node:process";
+
+const require = createRequire(import.meta.url);
+const { productName } = require("../../scripts/build-config.cjs");
 
 function signApp(identityName, identityId) {
   const __dirname = import.meta.dirname;
@@ -9,8 +13,8 @@ function signApp(identityName, identityId) {
     app: path.join(
       srcDir,
       "out",
-      `Kenku FM-darwin-${process.arch}`,
-      "Kenku FM.app"
+      `${productName}-darwin-${process.arch}`,
+      `${productName}.app`
     ),
     identity: `Developer ID Application: ${identityName} (${identityId})`,
     platform: "darwin",

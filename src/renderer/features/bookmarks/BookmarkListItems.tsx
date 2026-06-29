@@ -30,6 +30,7 @@ import { RootState } from "../../app/store";
 import { useSelector } from "react-redux";
 import { useDispatch } from "react-redux";
 import { moveBookmark } from "./bookmarksSlice";
+import { setBookmarksSectionOpen } from "../settings/settingsSlice";
 
 import { BookmarkListItem } from "./BookmarkListItem";
 import { SortableItem } from "../../common/SortableItem";
@@ -38,6 +39,9 @@ export function BookmarkListItems() {
   const dispatch = useDispatch();
 
   const bookmarks = useSelector((state: RootState) => state.bookmarks);
+  const bookmarksSectionOpen = useSelector(
+    (state: RootState) => state.settings.bookmarksSectionOpen,
+  );
 
   const pointerSensor = useSensor(PointerSensor, {
     activationConstraint: { distance: 10 },
@@ -48,11 +52,10 @@ export function BookmarkListItems() {
 
   const sensors = useSensors(pointerSensor, keyboardSensor);
 
-  const [open, setOpen] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
 
   function toggleOpen() {
-    setOpen(!open);
+    dispatch(setBookmarksSectionOpen(!bookmarksSectionOpen));
   }
 
   const items = bookmarks.bookmarks.allIds.map(
@@ -79,9 +82,9 @@ export function BookmarkListItems() {
     <>
       <ListItemButton onClick={toggleOpen}>
         <ListItemText primary="Bookmarks" />
-        {open ? <ExpandLess /> : <ExpandMore />}
+        {bookmarksSectionOpen ? <ExpandLess /> : <ExpandMore />}
       </ListItemButton>
-      <Collapse in={open} timeout="auto">
+      <Collapse in={bookmarksSectionOpen} timeout="auto">
         <List component="div" disablePadding>
           <DndContext
             sensors={sensors}

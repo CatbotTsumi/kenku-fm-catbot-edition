@@ -37,6 +37,9 @@ export class BrowserViewManagerMain {
     ipcMain.on("BROWSER_VIEW_GO_FORWARD", this._handleGoForward);
     ipcMain.on("BROWSER_VIEW_GO_BACK", this._handleGoBack);
     ipcMain.on("BROWSER_VIEW_RELOAD", this._handleReload);
+    ipcMain.on("BROWSER_VIEW_ZOOM_IN", this._handleZoomIn);
+    ipcMain.on("BROWSER_VIEW_ZOOM_OUT", this._handleZoomOut);
+    ipcMain.on("BROWSER_VIEW_RESET_ZOOM", this._handleResetZoom);
 
     this.window.on("resize", this._resizeListener);
   }
@@ -64,6 +67,9 @@ export class BrowserViewManagerMain {
     ipcMain.off("BROWSER_VIEW_GO_FORWARD", this._handleGoForward);
     ipcMain.off("BROWSER_VIEW_GO_BACK", this._handleGoBack);
     ipcMain.off("BROWSER_VIEW_RELOAD", this._handleReload);
+    ipcMain.off("BROWSER_VIEW_ZOOM_IN", this._handleZoomIn);
+    ipcMain.off("BROWSER_VIEW_ZOOM_OUT", this._handleZoomOut);
+    ipcMain.off("BROWSER_VIEW_RESET_ZOOM", this._handleResetZoom);
 
     this.window.off("resize", this._resizeListener);
     this.removeAllBrowserViews();
@@ -159,6 +165,13 @@ export class BrowserViewManagerMain {
 
   _handleReload = (_: Electron.IpcMainEvent, id: number) => this.reload(id);
 
+  _handleZoomIn = (_: Electron.IpcMainEvent, id: number) => this.zoomIn(id);
+
+  _handleZoomOut = (_: Electron.IpcMainEvent, id: number) => this.zoomOut(id);
+
+  _handleResetZoom = (_: Electron.IpcMainEvent, id: number) =>
+    this.resetZoom(id);
+
   /**
    * Create a new browser view and attach it to the current window
    * @param url Initial URL
@@ -195,6 +208,8 @@ export class BrowserViewManagerMain {
 
     // Spoof user agent to fix compatibility issues with 3rd party apps
     view.webContents.setUserAgent(getUserAgent());
+
+    this._attachZoomShortcuts(view);
 
     this.views[view.webContents.id] = view;
     this.topView = view;
@@ -284,5 +299,59 @@ export class BrowserViewManagerMain {
     } catch (err) {
       console.error(err);
     }
+  }
+
+  zoomIn(id: number) {
+    try {
+      const webContents = this.views[id].webContents;
+      webContents.setZoomLevel(webContents.getZoomLevel() + 1);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  zoomOut(id: number) {
+    try {
+      const webContents = this.views[id].webContents;
+      webContents.setZoomLevel(webContents.getZoomLevel() - 1);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  resetZoom(id: number) {
+    try {
+      this.views[id].webContents.setZoomLevel(0);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  _attachZoomShortcuts(view: WebContentsView) {
+    const id = view.webContents.id;
+    view.webContents.on("before-input-event", (event, input) => {
+      if (input.type !== "keyDown") {
+        return;
+      }
+      if (!input.control && !input.meta) {
+        return;
+      }
+
+      if (
+        input.key === "=" ||
+        input.key === "+" ||
+        input.code === "Equal" ||
+        input.code === "NumpadAdd"
+      ) {
+        event.preventDefault();
+        this.zoomIn(id);
+      } else if (input.key === "-" || input.code === "Minus" || input.code === "NumpadSubtract") {
+        event.preventDefault();
+        this.zoomOut(id);
+      } else if (input.key === "0" || input.code === "Digit0" || input.code === "Numpad0") {
+        event.preventDefault();
+        this.resetZoom(id);
+      }
+    });
   }
 }

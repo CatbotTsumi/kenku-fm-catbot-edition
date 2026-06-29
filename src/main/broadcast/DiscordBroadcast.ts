@@ -6,6 +6,7 @@ import {
   joinVoiceChannel,
   NoSubscriberBehavior,
 } from "@discordjs/voice";
+import { APP_DISPLAY_NAME } from "../../constants/appName";
 
 type VoiceChannel = {
   id: string;
@@ -19,6 +20,13 @@ type Guild = {
   icon: string;
   voiceChannels: VoiceChannel[];
 };
+
+export type DiscordBotProfile = {
+  name: string;
+  avatarUrl: string;
+};
+
+const DEFAULT_WINDOW_TITLE = APP_DISPLAY_NAME;
 
 export class DiscordBroadcast {
   window: BrowserWindow;
@@ -36,6 +44,7 @@ export class DiscordBroadcast {
     ipcMain.on("DISCORD_DISCONNECT", this._handleDisconnect);
     ipcMain.on("DISCORD_JOIN_CHANNEL", this._handleJoinChannel);
     ipcMain.on("DISCORD_LEAVE_CHANNEL", this._handleLeaveChannel);
+    ipcMain.on("DISCORD_LEAVE_GUILD", this._handleLeaveGuild);
     this.audioPlayer.on("error", this._handleBroadcastError);
   }
 
@@ -44,12 +53,55 @@ export class DiscordBroadcast {
     ipcMain.off("DISCORD_DISCONNECT", this._handleDisconnect);
     ipcMain.off("DISCORD_JOIN_CHANNEL", this._handleJoinChannel);
     ipcMain.off("DISCORD_LEAVE_CHANNEL", this._handleLeaveChannel);
+    ipcMain.off("DISCORD_LEAVE_GUILD", this._handleLeaveGuild);
     this.client?.destroy();
     this.client = undefined;
   }
 
+  _resetWindowTitle() {
+    this.window.setTitle(DEFAULT_WINDOW_TITLE);
+  }
+
+  _getBotProfile(): DiscordBotProfile | null {
+    const user = this.client?.user;
+    if (!user) {
+      return null;
+    }
+    return {
+      name: user.displayName ?? user.username,
+      avatarUrl: user.displayAvatarURL({ extension: "png", size: 128 }),
+    };
+  }
+
+  async _fetchGuilds(): Promise<Guild[]> {
+    const rawGuilds = await this.client.guilds.fetch();
+    return Promise.all(
+      rawGuilds.map(async (baseGuild) => {
+        const guild = await baseGuild.fetch();
+        const voiceChannels: VoiceChannel[] = [];
+        const channels = await guild.channels.fetch();
+        channels.forEach((channel) => {
+          if (channel && channel.isVoiceBased()) {
+            voiceChannels.push({
+              id: channel.id,
+              name: channel.name,
+              position: channel.rawPosition,
+            });
+          }
+        });
+        return {
+          id: guild.id,
+          name: guild.name,
+          icon: guild.iconURL(),
+          voiceChannels: voiceChannels.sort((a, b) => a.position - b.position),
+        };
+      }),
+    );
+  }
+
   _handleConnect = async (event: Electron.IpcMainEvent, token: string) => {
     if (!token) {
+      this._resetWindowTitle();
       event.reply("DISCORD_DISCONNECTED");
       event.reply("ERROR", "Error connecting to bot: Invalid token");
       return;
@@ -64,47 +116,32 @@ export class DiscordBroadcast {
         intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
       });
       this.client.once(Events.ClientReady, async () => {
-        event.reply("DISCORD_READY");
+        const profile = this._getBotProfile();
+        if (profile) {
+          this.window.setTitle(profile.name);
+          event.reply("DISCORD_READY", profile);
+        } else {
+          event.reply("DISCORD_READY");
+        }
         event.reply("MESSAGE", "Connected");
-        const rawGuilds = await this.client.guilds.fetch();
-        const guilds: Guild[] = await Promise.all(
-          rawGuilds.map(async (baseGuild) => {
-            const guild = await baseGuild.fetch();
-            const voiceChannels: VoiceChannel[] = [];
-            const channels = await guild.channels.fetch();
-            channels.forEach((channel) => {
-              if (channel && channel.isVoiceBased()) {
-                voiceChannels.push({
-                  id: channel.id,
-                  name: channel.name,
-                  position: channel.rawPosition,
-                });
-              }
-            });
-            return {
-              id: guild.id,
-              name: guild.name,
-              icon: guild.iconURL(),
-              voiceChannels: voiceChannels.sort(
-                (a, b) => a.position - b.position,
-              ),
-            };
-          }),
-        );
+        const guilds = await this._fetchGuilds();
         event.reply("DISCORD_GUILDS", guilds);
       });
       this.client.on("error", (err) => {
+        this._resetWindowTitle();
         event.reply("DISCORD_DISCONNECTED");
         event.reply("ERROR", `Error connecting to bot: ${err.message}`);
       });
       await this.client.login(token);
     } catch (err) {
+      this._resetWindowTitle();
       event.reply("DISCORD_DISCONNECTED");
       event.reply("ERROR", `Error connecting to bot: ${err.message}`);
     }
   };
 
   _handleDisconnect = async (event: Electron.IpcMainEvent) => {
+    this._resetWindowTitle();
     event.reply("DISCORD_DISCONNECTED");
     event.reply("DISCORD_GUILDS", []);
     event.reply("DISCORD_CHANNEL_JOINED", "local");
@@ -164,6 +201,41 @@ export class DiscordBroadcast {
       connection.destroy();
     }
     event.reply("DISCORD_CHANNEL_LEFT", channelId);
+  };
+
+  _handleLeaveGuild = async (
+    event: Electron.IpcMainEvent,
+    guildId: string,
+  ) => {
+    if (!this.client) {
+      event.reply("ERROR", "Unable to leave server: not connected to Discord");
+      return;
+    }
+
+    try {
+      const guild = await this.client.guilds.fetch(guildId);
+      if (!guild) {
+        event.reply("ERROR", "Unable to leave server: server not found");
+        return;
+      }
+
+      const connection = getVoiceConnection(guildId);
+      if (connection) {
+        const channelId = connection.joinConfig.channelId;
+        connection.destroy();
+        event.reply("DISCORD_CHANNEL_LEFT", channelId);
+      }
+
+      await guild.leave();
+      const guilds = await this._fetchGuilds();
+      event.reply("DISCORD_GUILDS", guilds);
+      event.reply("MESSAGE", `Left ${guild.name}`);
+    } catch (err) {
+      event.reply(
+        "ERROR",
+        `Error leaving server: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   };
 
   _handleBroadcastError = (error: Error) => {
