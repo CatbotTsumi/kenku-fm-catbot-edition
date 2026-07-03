@@ -1,7 +1,7 @@
 {
   "name": "kenku-fm",
   "productName": "Kenku FM Catbot Edition",
-  "version": "1.5.6",
+  "version": "1.5.7",
   "description": "Online tabletop audio sharing for Discord",
   "main": "./.webpack/main",
   "scripts": {
