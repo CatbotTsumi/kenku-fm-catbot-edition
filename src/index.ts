@@ -4,7 +4,6 @@ import {
   app,
   BrowserWindow,
   components,
-  session,
   shell,
   ipcMain,
   powerSaveBlocker,
@@ -16,6 +15,11 @@ import { SessionManager } from "./main/managers/SessionManager";
 import { runAutoUpdate, checkForReleaseUpdate, getCachedReleaseUrl } from "./autoUpdate";
 import { getSavedBounds, saveWindowBounds } from "./bounds";
 import { APP_DISPLAY_NAME } from "./constants/appName";
+import {
+  formatAppTitle,
+  getBrowserProfileName,
+  getBrowserSession,
+} from "./main/browserProfile";
 
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
@@ -45,6 +49,7 @@ const createWindow = (): BrowserWindow => {
   const mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
+    title: formatAppTitle(APP_DISPLAY_NAME),
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
     },
@@ -97,8 +102,8 @@ const createWindow = (): BrowserWindow => {
   return mainWindow;
 };
 
-const spoofUserAgent = () => {
-  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+const spoofUserAgent = (browserSession: Electron.Session) => {
+  browserSession.webRequest.onBeforeSendHeaders((details, callback) => {
     // Google blocks sign in on CEF so spoof user agent for network requests
     details.requestHeaders["User-Agent"] = details.url.includes("google.com")
       ? getMalformedUserAgent()
@@ -133,7 +138,7 @@ if (!hasSingleInstanceLock) {
 
     window = createWindow();
 
-    spoofUserAgent();
+    spoofUserAgent(getBrowserSession());
 
     if (hasWidevineError) {
       window.once("ready-to-show", () => {
@@ -180,9 +185,14 @@ if (!hasSingleInstanceLock) {
     event.returnValue = os.platform();
   });
 
+  ipcMain.on("GET_BROWSER_PROFILE", (event) => {
+    event.returnValue = getBrowserProfileName() ?? "";
+  });
+
   ipcMain.handle("CLEAR_CACHE", async () => {
-    await session.defaultSession.clearCache();
-    await session.defaultSession.clearStorageData({
+    const browserSession = getBrowserSession();
+    await browserSession.clearCache();
+    await browserSession.clearStorageData({
       storages: ["cookies", "shadercache", "cachestorage"],
     });
   });

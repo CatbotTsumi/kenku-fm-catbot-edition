@@ -149,6 +149,8 @@ Commit a `yarn.lock` when possible — CI runs `yarn install` without `--frozen-
 
 | Area | Where to edit |
 |------|---------------|
+| Browser profile launch | `src/main/browserProfile.ts`, `BrowserViewManagerMain.ts`, `src/index.ts` |
+| Tuna OBS (stream profile) | `src/main/tuna/TunaManager.ts`, `src/main/tuna/youtubeMusicMetadata.ts`, `SessionManager.ts` |
 | Settings / persistence | `src/renderer/features/settings/settingsSlice.ts` + migrations in `src/renderer/app/store.ts` |
 | New remote API routes | `src/main/remote/index.ts` + route file + player handler in `src/player/features/` |
 | Discord behavior | `src/main/broadcast/DiscordBroadcast.ts` |
@@ -182,5 +184,15 @@ Verified 2026-06-29:
 **Single-instance lock:** Kenku FM allows one instance. If dev start exits instantly, close existing Kenku FM window first (Task Manager → `electron` titled "Kenku FM").
 
 **Dev profile:** By default `yarn start` uses the **installed** settings folder (`%APPDATA%\Kenku FM`) — same bookmarks, Discord token, and playlists. Set `KENKU_DEV_ISOLATED=1` to use a separate `%APPDATA%\kenku-fm` profile. Do not run installed and dev at the same time when sharing a profile. To copy settings into an isolated dev profile, run `npx yarn copy-settings` (requires a working `electron.exe`).
+
+**Browser profile (stream YTM account):** Launch with `--browser-profile=<name>` to isolate tab browser data (cookies, YouTube Music login) in a separate Electron session partition while sharing settings, playlists, and Discord config. Example: `kenku-fm.exe --browser-profile=stream`. Env var: `KENKU_BROWSER_PROFILE=stream`. Dev: `npx yarn start -- --browser-profile=stream`. Stream Deck: Open action → `%LOCALAPPDATA%\kenku_fm\kenku-fm.exe` with arguments `--browser-profile=stream`. First launch with a profile: open YouTube Music in a tab and sign into your stream account once; cookies persist under `userData/Partitions/kenku-<name>/`. Normal launch (no flag) keeps the default session unchanged.
+
+**Tuna OBS integration (stream profile only):** When launched with `--browser-profile=stream`, Kenku polls YouTube Music browser tabs and POSTs now-playing metadata to the [Tuna](https://github.com/univrsal/tuna) OBS plugin (default `localhost:1608`). Override port with `KENKU_TUNA_PORT`. Setup: 
+1. Install Tuna in OBS.
+2. OBS → Tools → Tuna Settings → Song source: **Web browser**; enable **Host/receive information on local webserver** on port **1608**; apply/start Tuna.
+3. Launch Kenku with `--browser-profile=stream`, open YouTube Music in a tab, play music.
+4. Add a Tuna text or browser source in OBS. Verify at `http://localhost:1608/` while a song plays.
+
+Integration is automatic — no Kenku setting required. Only browser tabs on `music.youtube.com` are tracked (not the embedded Howler player tab).
 
 **Electron on Windows:** `postinstall` runs `scripts/ensure-electron-win.js` to verify `electron.exe` exists after install.

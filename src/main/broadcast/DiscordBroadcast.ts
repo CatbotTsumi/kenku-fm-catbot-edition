@@ -6,6 +6,7 @@ import {
   joinVoiceChannel,
   NoSubscriberBehavior,
 } from "@discordjs/voice";
+import { formatAppTitle } from "../browserProfile";
 import { APP_DISPLAY_NAME } from "../../constants/appName";
 
 type VoiceChannel = {
@@ -26,7 +27,7 @@ export type DiscordBotProfile = {
   avatarUrl: string;
 };
 
-const DEFAULT_WINDOW_TITLE = APP_DISPLAY_NAME;
+const DEFAULT_WINDOW_TITLE = formatAppTitle(APP_DISPLAY_NAME);
 
 export class DiscordBroadcast {
   window: BrowserWindow;
@@ -118,7 +119,7 @@ export class DiscordBroadcast {
       this.client.once(Events.ClientReady, async () => {
         const profile = this._getBotProfile();
         if (profile) {
-          this.window.setTitle(profile.name);
+          this.window.setTitle(formatAppTitle(profile.name));
           event.reply("DISCORD_READY", profile);
         } else {
           event.reply("DISCORD_READY");

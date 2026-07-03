@@ -1,5 +1,17 @@
 import { BrowserWindow, ipcMain, shell, WebContentsView } from "electron";
+import { getBrowserPartition } from "../browserProfile";
 import { getUserAgent } from "../userAgent";
+
+const browserPartition = getBrowserPartition();
+
+export type ViewLifecycleCallbacks = {
+  onViewAdded?: (
+    id: number,
+    view: WebContentsView,
+    preload?: string,
+  ) => void;
+  onViewRemoved?: (id: number) => void;
+};
 
 /**
  * Manager to help create and manager browser views
@@ -10,6 +22,7 @@ export class BrowserViewManagerMain {
   window: BrowserWindow;
   views: Record<number, WebContentsView>;
   topView: WebContentsView;
+  private viewLifecycleCallbacks?: ViewLifecycleCallbacks;
 
   constructor(window: BrowserWindow) {
     this.window = window;
@@ -42,6 +55,10 @@ export class BrowserViewManagerMain {
     ipcMain.on("BROWSER_VIEW_RESET_ZOOM", this._handleResetZoom);
 
     this.window.on("resize", this._resizeListener);
+  }
+
+  setViewLifecycleCallbacks(callbacks: ViewLifecycleCallbacks | undefined) {
+    this.viewLifecycleCallbacks = callbacks;
   }
 
   destroy() {
@@ -189,6 +206,7 @@ export class BrowserViewManagerMain {
     const view = new WebContentsView({
       webPreferences: {
         preload,
+        ...(browserPartition ? { partition: browserPartition } : {}),
       },
     });
     this.window.contentView.addChildView(view);
@@ -214,6 +232,12 @@ export class BrowserViewManagerMain {
     this.views[view.webContents.id] = view;
     this.topView = view;
 
+    this.viewLifecycleCallbacks?.onViewAdded?.(
+      view.webContents.id,
+      view,
+      preload,
+    );
+
     return view.webContents.id;
   }
 
@@ -226,16 +250,19 @@ export class BrowserViewManagerMain {
       this.window.contentView.removeChildView(this.views[id]);
       (this.views[id].webContents as any).destroy();
       delete this.views[id];
+      this.viewLifecycleCallbacks?.onViewRemoved?.(id);
     }
   }
 
   removeAllBrowserViews() {
     for (let id in this.views) {
-      this.views[id].webContents.close({ waitForBeforeUnload: false });
-      this.window.contentView.removeChildView(this.views[id]);
-      (this.views[id].webContents as any).destroy();
+      const viewId = Number(id);
+      this.views[viewId].webContents.close({ waitForBeforeUnload: false });
+      this.window.contentView.removeChildView(this.views[viewId]);
+      (this.views[viewId].webContents as any).destroy();
+      this.viewLifecycleCallbacks?.onViewRemoved?.(viewId);
       this.topView = undefined;
-      delete this.views[id];
+      delete this.views[viewId];
     }
   }
 

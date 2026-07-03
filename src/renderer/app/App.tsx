@@ -20,7 +20,16 @@ import {
   setStatus,
 } from "../features/connection/connectionSlice";
 
-const DEFAULT_TITLE = APP_DISPLAY_NAME;
+function withBrowserProfile(base: string): string {
+  const profile = window.kenku.browserProfile;
+  if (!profile) {
+    return base;
+  }
+  const label = profile.charAt(0).toUpperCase() + profile.slice(1);
+  return `${base} · ${label}`;
+}
+
+const DEFAULT_TITLE = withBrowserProfile(APP_DISPLAY_NAME);
 
 const WallPaper = styled("div")({
   position: "absolute",
@@ -38,6 +47,10 @@ export function App() {
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
   const [fatalError, setFatalError] = useState<string>();
+
+  useEffect(() => {
+    document.title = DEFAULT_TITLE;
+  }, []);
 
   useEffect(() => {
     window.kenku.on("MESSAGE", (args) => {
@@ -59,7 +72,7 @@ export function App() {
       dispatch(setStatus("ready"));
       if (profile) {
         dispatch(setBotProfile(profile));
-        document.title = profile.name;
+        document.title = withBrowserProfile(profile.name);
       }
     });
     window.kenku.on("DISCORD_DISCONNECTED", () => {

@@ -1,3 +1,5 @@
+# Upstream signed release pipeline (Owlbear secrets + code signing).
+# Catbot Edition uses build.yml (push to main) and release.yml (tags) instead.
 name: Publish Kenku FM - Mac, Win, Linux x64
 on:
   push:

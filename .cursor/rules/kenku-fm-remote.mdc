@@ -1,0 +1,43 @@
+---
+description: Kenku FM remote HTTP API and player IPC patterns
+globs: src/main/remote/**,src/player/features/**/*Remote*
+alwaysApply: false
+---
+
+# Kenku FM Remote API
+
+## Registration
+
+Routes register in `src/main/remote/index.ts` via `registerRemote(manager)`. Server starts in `PlayerManager.startRemote(address, port)`.
+
+## Route pattern
+
+```typescript
+// 1. Fastify route in src/main/remote/routes/
+const view = manager.getView();
+if (view) {
+  view.send("PLAYER_REMOTE_SOMETHING", payload);
+  reply.status(200).send(result);
+} else {
+  reply.status(503).send(VIEW_ERROR);
+}
+
+// 2. Player preload handles PLAYER_REMOTE_* and replies via ipcMain
+```
+
+## Types
+
+Shared reply types live in `src/types/player.ts`. Request/response schemas use `@sinclair/typebox` in route files.
+
+## Adding a new endpoint
+
+1. Create route file under `src/main/remote/routes/`
+2. Register in `src/main/remote/index.ts` with `/v1/` prefix
+3. Add `PLAYER_REMOTE_*` handler in player preload or `*Remote.tsx` component
+4. Add types to `src/types/player.ts` if needed
+5. Keep `/v1/` prefix stable — Stream Deck plugin depends on it
+
+## Errors
+
+- `VIEW_ERROR` (503): player BrowserView not registered
+- Reply timeout: 5 seconds on `*_REPLY` IPC pairs

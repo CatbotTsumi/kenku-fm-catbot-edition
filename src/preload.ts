@@ -204,6 +204,7 @@ const api = {
   },
   platform: ipcRenderer.sendSync("GET_PLATFORM") as string,
   version: ipcRenderer.sendSync("GET_VERSION") as string,
+  browserProfile: ipcRenderer.sendSync("GET_BROWSER_PROFILE") as string,
 };
 
 declare global {

@@ -355,6 +355,11 @@ export function Settings({ open, onClose }: SettingsProps) {
         <Divider sx={{ mb: 2 }} />
         <DialogContentText>Other</DialogContentText>
         {otherSettings}
+        {window.kenku.browserProfile && (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+            Browser profile: {window.kenku.browserProfile} (launch flag)
+          </Typography>
+        )}
         <Stack my={1}>
           <Typography
             variant="caption"
