@@ -1,5 +1,15 @@
 import { BrowserWindow, ipcMain } from "electron";
-import { ChannelType, Client, Events, GatewayIntentBits } from "discord.js";
+import {
+  ChannelType,
+  Client,
+  EmbedBuilder,
+  Events,
+  GatewayIntentBits,
+  Interaction,
+  REST,
+  Routes,
+  SlashCommandBuilder,
+} from "discord.js";
 import {
   createAudioPlayer,
   getVoiceConnection,
@@ -8,6 +18,9 @@ import {
 } from "@discordjs/voice";
 import { formatAppTitle } from "../browserProfile";
 import { APP_DISPLAY_NAME } from "../../constants/appName";
+import { TunaTrackData } from "../tuna/youtubeMusicMetadata";
+import { fetchArtistImage } from "../tuna/artistImage";
+import { YoutubeMusicTracker } from "../tuna/YoutubeMusicTracker";
 
 type VoiceChannel = {
   id: string;
@@ -28,10 +41,118 @@ export type DiscordBotProfile = {
 };
 
 const DEFAULT_WINDOW_TITLE = formatAppTitle(APP_DISPLAY_NAME);
+const YOUTUBE_MUSIC_EMOJI = "<:YoutubeMusic:1522756150163013773>";
+const YOUTUBE_EMOJI = "<:Youtube:1522756009917939863>";
+
+function formatDurationMs(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${min}:${sec.toString().padStart(2, "0")}`;
+}
+
+function youtubeVideoUrl(songUrl: string): string {
+  return songUrl.replace(
+    "https://music.youtube.com/",
+    "https://www.youtube.com/",
+  );
+}
+
+function formatArtistsList(artists: string[]): string {
+  if (artists.length === 0) {
+    return "";
+  }
+  if (artists.length === 1) {
+    return artists[0];
+  }
+  if (artists.length === 2) {
+    return `${artists[0]} & ${artists[1]}`;
+  }
+  return `${artists.slice(0, -1).join(", ")} & ${artists[artists.length - 1]}`;
+}
+
+function buildNowPlayingEmbed(track: TunaTrackData): EmbedBuilder {
+  const embed = new EmbedBuilder()
+    .setTitle(track.title ?? "Unknown")
+    .setColor(0xff0000);
+
+  if (track.song_url) {
+    embed.setURL(track.song_url);
+  }
+
+  const primaryArtist = track.artists?.[0];
+  if (primaryArtist) {
+    const author: { name: string; url?: string; iconURL?: string } = {
+      name: primaryArtist,
+    };
+    if (track.artist_url) {
+      author.url = track.artist_url;
+    } else if (track.artist_channel_id) {
+      author.url = `https://music.youtube.com/channel/${track.artist_channel_id}`;
+    }
+    if (track.artist_image) {
+      author.iconURL = track.artist_image;
+    }
+    embed.setAuthor(author);
+  }
+
+  if (track.cover) {
+    embed.setImage(track.cover);
+  }
+
+  const artists = track.artists?.filter(Boolean) ?? [];
+  if (artists.length > 0) {
+    embed.addFields({
+      name: "Artist",
+      value: formatArtistsList(artists),
+      inline: true,
+    });
+  }
+
+  if (track.album) {
+    embed.addFields({ name: "Album", value: track.album, inline: true });
+  }
+
+  if (track.song_url) {
+    const ytVideoUrl = youtubeVideoUrl(track.song_url);
+    embed.addFields({
+      name: "Link",
+      value: `[${YOUTUBE_MUSIC_EMOJI}](${track.song_url}) [${YOUTUBE_EMOJI}](${ytVideoUrl})`,
+    });
+  }
+
+  const state = track.status === "playing" ? "Playing" : "Paused";
+  let footer = state;
+  if (track.progress !== undefined && track.duration) {
+    footer += ` · ${formatDurationMs(track.progress)} / ${formatDurationMs(track.duration)}`;
+  }
+  embed.setFooter({ text: footer });
+
+  return embed;
+}
+
+async function enrichTrackArtistImage(
+  track: TunaTrackData,
+): Promise<TunaTrackData> {
+  if (track.artist_image) {
+    return track;
+  }
+
+  const image = await fetchArtistImage(
+    track.artist_url,
+    track.artist_channel_id,
+  );
+  if (!image) {
+    return track;
+  }
+
+  return { ...track, artist_image: image };
+}
 
 export class DiscordBroadcast {
   window: BrowserWindow;
   client?: Client;
+  private youtubeMusicTracker: YoutubeMusicTracker;
   audioPlayer = createAudioPlayer({
     behaviors: {
       noSubscriber: NoSubscriberBehavior.Play,
@@ -39,8 +160,10 @@ export class DiscordBroadcast {
       maxMissedFrames: 3000,
     },
   });
-  constructor(window: BrowserWindow) {
+
+  constructor(window: BrowserWindow, youtubeMusicTracker: YoutubeMusicTracker) {
     this.window = window;
+    this.youtubeMusicTracker = youtubeMusicTracker;
     ipcMain.on("DISCORD_CONNECT", this._handleConnect);
     ipcMain.on("DISCORD_DISCONNECT", this._handleDisconnect);
     ipcMain.on("DISCORD_JOIN_CHANNEL", this._handleJoinChannel);
@@ -55,8 +178,7 @@ export class DiscordBroadcast {
     ipcMain.off("DISCORD_JOIN_CHANNEL", this._handleJoinChannel);
     ipcMain.off("DISCORD_LEAVE_CHANNEL", this._handleLeaveChannel);
     ipcMain.off("DISCORD_LEAVE_GUILD", this._handleLeaveGuild);
-    this.client?.destroy();
-    this.client = undefined;
+    this._teardownClient();
   }
 
   _resetWindowTitle() {
@@ -100,6 +222,60 @@ export class DiscordBroadcast {
     );
   }
 
+  private _teardownClient() {
+    if (this.client) {
+      this.client.off(Events.InteractionCreate, this._handleInteractionCreate);
+      this.client.destroy();
+      this.client = undefined;
+    }
+  }
+
+  private async _registerSlashCommands(token: string) {
+    if (!this.client?.user) {
+      return;
+    }
+    const rest = new REST().setToken(token);
+    await rest.put(Routes.applicationCommands(this.client.user.id), {
+      body: [
+        new SlashCommandBuilder()
+          .setName("nowplaying")
+          .setDescription("Show the current YouTube Music track")
+          .toJSON(),
+      ],
+    });
+  }
+
+  _handleInteractionCreate = async (interaction: Interaction) => {
+    if (!interaction.isChatInputCommand()) {
+      return;
+    }
+    if (interaction.commandName !== "nowplaying") {
+      return;
+    }
+
+    let track = await this.youtubeMusicTracker.fetchCurrentTrack();
+    if (!track?.title) {
+      await interaction.reply({
+        content: "Nothing playing on YouTube Music.",
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const needsArtistImage =
+      !track.artist_image &&
+      Boolean(track.artist_url || track.artist_channel_id);
+
+    if (needsArtistImage) {
+      await interaction.deferReply();
+      track = await enrichTrackArtistImage(track);
+      await interaction.editReply({ embeds: [buildNowPlayingEmbed(track)] });
+      return;
+    }
+
+    await interaction.reply({ embeds: [buildNowPlayingEmbed(track)] });
+  };
+
   _handleConnect = async (event: Electron.IpcMainEvent, token: string) => {
     if (!token) {
       this._resetWindowTitle();
@@ -107,15 +283,13 @@ export class DiscordBroadcast {
       event.reply("ERROR", "Error connecting to bot: Invalid token");
       return;
     }
-    if (this.client) {
-      this.client.destroy();
-      this.client = undefined;
-    }
+    this._teardownClient();
 
     try {
       this.client = new Client({
         intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
       });
+      this.client.on(Events.InteractionCreate, this._handleInteractionCreate);
       this.client.once(Events.ClientReady, async () => {
         const profile = this._getBotProfile();
         if (profile) {
@@ -125,6 +299,11 @@ export class DiscordBroadcast {
           event.reply("DISCORD_READY");
         }
         event.reply("MESSAGE", "Connected");
+        try {
+          await this._registerSlashCommands(token);
+        } catch (err) {
+          console.error("Failed to register slash commands:", err);
+        }
         const guilds = await this._fetchGuilds();
         event.reply("DISCORD_GUILDS", guilds);
       });
@@ -146,8 +325,7 @@ export class DiscordBroadcast {
     event.reply("DISCORD_DISCONNECTED");
     event.reply("DISCORD_GUILDS", []);
     event.reply("DISCORD_CHANNEL_JOINED", "local");
-    this.client.destroy();
-    this.client = undefined;
+    this._teardownClient();
   };
 
   _handleJoinChannel = async (

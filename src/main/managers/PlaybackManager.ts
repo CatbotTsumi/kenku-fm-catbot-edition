@@ -1,14 +1,15 @@
 import { createAudioResource } from "@discordjs/voice";
 import { BrowserWindow } from "electron";
 import { DiscordBroadcast } from "../broadcast/DiscordBroadcast";
+import { YoutubeMusicTracker } from "../tuna/YoutubeMusicTracker";
 import { AudioCaptureManagerMain } from "./AudioCaptureManagerMain";
 
 export class PlaybackManager {
   discord: DiscordBroadcast;
   audioCaptureManager: AudioCaptureManagerMain;
 
-  constructor(window: BrowserWindow) {
-    this.discord = new DiscordBroadcast(window);
+  constructor(window: BrowserWindow, youtubeMusicTracker: YoutubeMusicTracker) {
+    this.discord = new DiscordBroadcast(window, youtubeMusicTracker);
     this.audioCaptureManager = new AudioCaptureManagerMain();
     this.audioCaptureManager.on("streamStart", (stream) => {
       const resource = createAudioResource(stream);
