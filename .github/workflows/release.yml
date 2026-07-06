@@ -44,13 +44,21 @@ jobs:
       - name: Build Windows installer
         run: yarn make
 
+      - name: Fix Squirrel RELEASES (strip UTF-8 BOM)
+        run: node scripts/fix-squirrel-releases.mjs
+
+      - name: Set release version
+        shell: bash
+        run: echo "RELEASE_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           files: |
             out/make/squirrel.windows/x64/*.exe
-            out/make/squirrel.windows/x64/*.nupkg
+            out/make/squirrel.windows/x64/kenku_fm-${{ env.RELEASE_VERSION }}-full.nupkg
+            out/make/squirrel.windows/x64/kenku_fm-${{ env.RELEASE_VERSION }}-delta.nupkg
             out/make/squirrel.windows/x64/RELEASES
 
   release-linux:

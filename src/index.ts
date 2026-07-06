@@ -1,13 +1,6 @@
 import os from "os";
 import path from "path";
-import {
-  app,
-  BrowserWindow,
-  components,
-  shell,
-  ipcMain,
-  powerSaveBlocker,
-} from "electron";
+import { app, BrowserWindow, components, shell, ipcMain, powerSaveBlocker, autoUpdater } from "electron";
 import "./menu";
 import icon from "./assets/icon.png";
 import { getMalformedUserAgent, getUserAgent } from "./main/userAgent";
@@ -206,5 +199,11 @@ if (!hasSingleInstanceLock) {
 
   ipcMain.handle("UPDATE_OPEN_RELEASE", async () => {
     await shell.openExternal(getCachedReleaseUrl());
+  });
+
+  ipcMain.handle("UPDATE_QUIT_AND_INSTALL", () => {
+    if (app.isPackaged) {
+      autoUpdater.quitAndInstall();
+    }
   });
 }

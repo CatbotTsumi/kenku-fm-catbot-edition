@@ -4,7 +4,15 @@ export const FORK_GITHUB_REPO = {
   name: "kenku-fm-catbot-edition",
 } as const;
 
-/** Official upstream Kenku FM — manual update link when fork is current. */
+export const FORK_RELEASE_PAGE_URL = `https://github.com/${FORK_GITHUB_REPO.owner}/${FORK_GITHUB_REPO.name}/releases/latest`;
+
+/**
+ * Owlbear Kenku FM version last merged into this fork.
+ * Bump when pulling upstream; used to detect new official releases to merge.
+ */
+export const UPSTREAM_BASELINE_VERSION = "1.5.5";
+
+/** Official upstream Kenku FM — manual update link when upstream is ahead of baseline. */
 export const OFFICIAL_RELEASE_GITHUB_REPO = {
   owner: "owlbear-rodeo",
   name: "kenku-fm",

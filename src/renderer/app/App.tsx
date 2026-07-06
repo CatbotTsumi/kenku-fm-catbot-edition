@@ -124,7 +124,9 @@ export function App() {
       <Tabs />
       <Snackbar
         open={Boolean(message)}
-        autoHideDuration={4000}
+        autoHideDuration={
+          message?.toLowerCase().includes("update") ? 15000 : 4000
+        }
         onClose={() => setMessage(undefined)}
         message={message}
         sx={{ maxWidth: "192px" }}

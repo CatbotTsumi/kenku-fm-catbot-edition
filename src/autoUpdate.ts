@@ -1,22 +1,27 @@
 import { app, autoUpdater, BrowserWindow } from "electron";
 
 import {
+  FORK_RELEASE_PAGE_URL,
   getForkUpdateFeedUrl,
   OFFICIAL_RELEASE_API_URL,
   OFFICIAL_RELEASE_PAGE_URL,
+  UPSTREAM_BASELINE_VERSION,
 } from "./constants/update";
 
 export type UpdateCheckResult = {
   available: boolean;
   latestVersion?: string;
   releaseUrl: string;
+  /** Fork Squirrel update downloaded; restart to apply. */
+  restartRequired?: boolean;
 };
 
 let forkUpdatePending = false;
+let forkUpdateDownloaded = false;
 
-let cachedOfficialResult: UpdateCheckResult = {
+let cachedUpdateResult: UpdateCheckResult = {
   available: false,
-  releaseUrl: OFFICIAL_RELEASE_PAGE_URL,
+  releaseUrl: FORK_RELEASE_PAGE_URL,
 };
 
 function parseVersion(version: string): number[] | null {
@@ -45,9 +50,7 @@ function isNewerVersion(latest: string, current: string): boolean {
   return false;
 }
 
-async function checkForOfficialReleaseUpdate(
-  currentVersion: string = app.getVersion(),
-): Promise<UpdateCheckResult> {
+async function checkForUpstreamReleaseUpdate(): Promise<UpdateCheckResult> {
   try {
     const response = await fetch(OFFICIAL_RELEASE_API_URL, {
       headers: {
@@ -65,7 +68,7 @@ async function checkForOfficialReleaseUpdate(
     const tagName = data.tag_name?.replace(/^v/i, "") ?? "";
     const releaseUrl = data.html_url ?? OFFICIAL_RELEASE_PAGE_URL;
     const available = tagName
-      ? isNewerVersion(tagName, currentVersion)
+      ? isNewerVersion(tagName, UPSTREAM_BASELINE_VERSION)
       : false;
     return {
       available,
@@ -77,23 +80,37 @@ async function checkForOfficialReleaseUpdate(
   }
 }
 
-async function checkAndNotifyOfficial(window: BrowserWindow) {
+function notifyUpdateAvailable(window: BrowserWindow, result: UpdateCheckResult) {
+  if (result.available) {
+    window.webContents.send("UPDATE_AVAILABLE", {
+      latestVersion: result.latestVersion,
+      releaseUrl: result.releaseUrl,
+      restartRequired: result.restartRequired ?? false,
+    });
+  } else {
+    window.webContents.send("UPDATE_OFFICIAL_CLEAR");
+  }
+}
+
+async function checkAndNotifyUpdates(window: BrowserWindow) {
+  if (forkUpdateDownloaded) {
+    cachedUpdateResult = {
+      available: true,
+      releaseUrl: FORK_RELEASE_PAGE_URL,
+      restartRequired: true,
+    };
+    notifyUpdateAvailable(window, cachedUpdateResult);
+    return;
+  }
+
   if (forkUpdatePending) {
     window.webContents.send("UPDATE_OFFICIAL_CLEAR");
     return;
   }
 
-  const result = await checkForOfficialReleaseUpdate();
-  cachedOfficialResult = result;
-
-  if (result.available && result.latestVersion) {
-    window.webContents.send("UPDATE_AVAILABLE", {
-      latestVersion: result.latestVersion,
-      releaseUrl: result.releaseUrl,
-    });
-  } else {
-    window.webContents.send("UPDATE_OFFICIAL_CLEAR");
-  }
+  const upstreamResult = await checkForUpstreamReleaseUpdate();
+  cachedUpdateResult = upstreamResult;
+  notifyUpdateAvailable(window, upstreamResult);
 }
 
 function checkForkUpdates() {
@@ -110,7 +127,7 @@ function checkForkUpdates() {
 }
 
 function runOfficialOnlyChecker(window: BrowserWindow) {
-  const runCheck = () => checkAndNotifyOfficial(window);
+  const runCheck = () => checkAndNotifyUpdates(window);
 
   runCheck();
 
@@ -123,35 +140,46 @@ function runOfficialOnlyChecker(window: BrowserWindow) {
 
 export function runAutoUpdate(window: BrowserWindow) {
   if (process.platform === "win32" || process.platform === "darwin") {
-    autoUpdater.setFeedURL({
-      url: getForkUpdateFeedUrl(
-        process.platform,
-        process.arch,
-        app.getVersion(),
-      ),
-    });
+    const feedUrl = getForkUpdateFeedUrl(
+      process.platform,
+      process.arch,
+      app.getVersion(),
+    );
+    console.log("Fork auto-update feed:", feedUrl);
+    autoUpdater.setFeedURL({ url: feedUrl });
 
-    const handleError = () => {
+    const handleError = (error: Error) => {
+      console.error("Fork auto-update error:", error);
       forkUpdatePending = false;
-      checkAndNotifyOfficial(window);
+      checkAndNotifyUpdates(window);
     };
 
     const handleUpdateNotAvailable = () => {
+      console.log("Fork auto-update: no update available");
       forkUpdatePending = false;
-      checkAndNotifyOfficial(window);
+      checkAndNotifyUpdates(window);
     };
 
     const handleUpdateAvailable = () => {
+      console.log("Fork auto-update: update available, downloading");
       forkUpdatePending = true;
       window.webContents.send("UPDATE_OFFICIAL_CLEAR");
     };
 
     const handleUpdateDownloaded = () => {
-      forkUpdatePending = true;
+      console.log("Fork auto-update: update downloaded");
+      forkUpdatePending = false;
+      forkUpdateDownloaded = true;
+      cachedUpdateResult = {
+        available: true,
+        releaseUrl: FORK_RELEASE_PAGE_URL,
+        restartRequired: true,
+      };
       window.webContents.send(
         "MESSAGE",
-        "Update Available. Restart to apply.",
+        "Update available. Restart Kenku FM to apply.",
       );
+      notifyUpdateAvailable(window, cachedUpdateResult);
     };
 
     autoUpdater.on("error", handleError);
@@ -176,15 +204,23 @@ export function runAutoUpdate(window: BrowserWindow) {
 }
 
 export async function checkForReleaseUpdate(): Promise<UpdateCheckResult> {
-  if (forkUpdatePending) {
-    return { available: false, releaseUrl: cachedOfficialResult.releaseUrl };
+  if (forkUpdateDownloaded) {
+    return {
+      available: true,
+      releaseUrl: FORK_RELEASE_PAGE_URL,
+      restartRequired: true,
+    };
   }
 
-  const result = await checkForOfficialReleaseUpdate();
-  cachedOfficialResult = result;
+  if (forkUpdatePending) {
+    return { available: false, releaseUrl: cachedUpdateResult.releaseUrl };
+  }
+
+  const result = await checkForUpstreamReleaseUpdate();
+  cachedUpdateResult = result;
   return result;
 }
 
 export function getCachedReleaseUrl(): string {
-  return cachedOfficialResult.releaseUrl;
+  return cachedUpdateResult.releaseUrl;
 }

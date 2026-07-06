@@ -197,10 +197,14 @@ const api = {
       available: boolean;
       latestVersion?: string;
       releaseUrl: string;
+      restartRequired?: boolean;
     }>;
   },
   openReleasePage: () => {
     return ipcRenderer.invoke("UPDATE_OPEN_RELEASE");
+  },
+  quitAndInstallUpdate: () => {
+    return ipcRenderer.invoke("UPDATE_QUIT_AND_INSTALL");
   },
   platform: ipcRenderer.sendSync("GET_PLATFORM") as string,
   version: ipcRenderer.sendSync("GET_VERSION") as string,
