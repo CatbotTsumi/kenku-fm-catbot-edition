@@ -13,6 +13,7 @@ export interface SettingsState {
   externalInputsEnabled: boolean;
   multipleInputsEnabled: boolean;
   multipleOutputsEnabled: boolean;
+  hideEmptyVoiceChannels: boolean;
   streamingMode: StreamingMode;
   sidebarCollapsed: boolean;
   hiddenGuildIds: string[];
@@ -33,6 +34,7 @@ const initialState: SettingsState = {
   externalInputsEnabled: false,
   multipleInputsEnabled: false,
   multipleOutputsEnabled: false,
+  hideEmptyVoiceChannels: false,
   streamingMode: "performance",
   sidebarCollapsed: false,
   hiddenGuildIds: [],
@@ -71,6 +73,9 @@ export const connectionSlice = createSlice({
     },
     setMultipleOutputsEnabled: (state, action: PayloadAction<boolean>) => {
       state.multipleOutputsEnabled = action.payload;
+    },
+    setHideEmptyVoiceChannels: (state, action: PayloadAction<boolean>) => {
+      state.hideEmptyVoiceChannels = action.payload;
     },
     setStreamingMode: (state, action: PayloadAction<StreamingMode>) => {
       state.streamingMode = action.payload;
@@ -198,6 +203,7 @@ export const {
   setExternalInputsEnabled,
   setMultipleInputsEnabled,
   setMultipleOutputsEnabled,
+  setHideEmptyVoiceChannels,
   setStreamingMode,
   setSidebarCollapsed,
   setBookmarksSectionOpen,

@@ -10,6 +10,7 @@ import VolumeIcon from "@mui/icons-material/VolumeUpRounded";
 import TickIcon from "@mui/icons-material/CheckCircleRounded";
 
 import { VoiceChannel } from "./outputSlice";
+import { VoiceChannelAvatarStack } from "./VoiceChannelAvatarStack";
 
 type OutputListItemProps = {
   voiceChannel: VoiceChannel;
@@ -24,15 +25,18 @@ export function OutputListItem({
   tick,
   onClick,
 }: OutputListItemProps) {
+  const members = voiceChannel.members ?? [];
+  const hasMembers = members.length > 0;
+
   return (
     <ListItem
       disablePadding
       secondaryAction={
-        tick && (
+        tick ? (
           <Box sx={{ height: "1rem" }}>
             <TickIcon sx={{ fontSize: "1rem" }} />
           </Box>
-        )
+        ) : undefined
       }
       sx={{
         "& .MuiListItemButton-root": {
@@ -44,16 +48,30 @@ export function OutputListItem({
         selected={selected}
         dense
         onClick={() => onClick(voiceChannel.id)}
+        sx={{
+          flexDirection: "column",
+          alignItems: "stretch",
+        }}
       >
-        <ListItemIcon
-          sx={{
-            minWidth: "36px",
-            color: selected ? "primary.main" : undefined,
-          }}
-        >
-          <VolumeIcon />
-        </ListItemIcon>
-        <ListItemText primary={voiceChannel.name} />
+        <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
+          <ListItemIcon
+            sx={{
+              minWidth: "36px",
+              color: selected ? "primary.main" : undefined,
+            }}
+          >
+            <VolumeIcon />
+          </ListItemIcon>
+          <ListItemText
+            primary={voiceChannel.name}
+            primaryTypographyProps={{ noWrap: true }}
+          />
+        </Box>
+        {hasMembers && (
+          <Box sx={{ pl: "36px", pt: 0.25, width: "100%" }}>
+            <VoiceChannelAvatarStack members={members} selected={selected} />
+          </Box>
+        )}
       </ListItemButton>
     </ListItem>
   );

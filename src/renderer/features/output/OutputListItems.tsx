@@ -32,7 +32,7 @@ import {
 
 import { RootState } from "../../app/store";
 import { useSelector, useDispatch } from "react-redux";
-import { addOutput, removeOutput, setGuilds, setOutput, Guild } from "./outputSlice";
+import { addOutput, removeOutput, setGuilds, setOutput, Guild, VoiceChannel } from "./outputSlice";
 import {
   setGuildHidden,
   setChannelHidden,
@@ -63,12 +63,17 @@ function matchesSearch(text: string, query: string): boolean {
   return text.toLowerCase().includes(query);
 }
 
+function channelHasMembers(channel: VoiceChannel): boolean {
+  return (channel.members?.length ?? 0) > 0;
+}
+
 function filterGuildsForDisplay(
   guilds: Guild[],
   hiddenGuildIds: string[],
   hiddenChannelIds: string[],
   searchQuery: string,
   editMode: boolean,
+  hideEmptyVoiceChannels: boolean,
 ): Guild[] {
   const query = searchQuery.trim().toLowerCase();
 
@@ -101,6 +106,9 @@ function filterGuildsForDisplay(
       let channels = guild.voiceChannels.filter(
         (channel) => !hiddenChannelIds.includes(channel.id),
       );
+      if (hideEmptyVoiceChannels) {
+        channels = channels.filter(channelHasMembers);
+      }
       if (query) {
         const guildMatches = matchesSearch(guild.name, query);
         channels = channels.filter(
@@ -150,11 +158,13 @@ export function OutputListItems({
         settings.hiddenChannelIds,
         searchQuery,
         visibilityEditMode,
+        settings.hideEmptyVoiceChannels,
       ),
     [
       orderedGuilds,
       settings.hiddenGuildIds,
       settings.hiddenChannelIds,
+      settings.hideEmptyVoiceChannels,
       searchQuery,
       visibilityEditMode,
     ],

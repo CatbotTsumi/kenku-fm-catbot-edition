@@ -29,6 +29,7 @@ import {
   setExternalInputsEnabled,
   setMultipleInputsEnabled,
   setMultipleOutputsEnabled,
+  setHideEmptyVoiceChannels,
   setRemoteEnabled,
   setRemoteAddress,
   setRemotePort,
@@ -257,6 +258,10 @@ export function Settings({ open, onClose }: SettingsProps) {
     dispatch(setMultipleOutputsEnabled(!settings.multipleOutputsEnabled));
   }
 
+  function handleHideEmptyVoiceChannelsToggle() {
+    dispatch(setHideEmptyVoiceChannels(!settings.hideEmptyVoiceChannels));
+  }
+
   const [clearingCache, setClearingCache] = useState(false);
   async function handleCacheClear() {
     setClearingCache(true);
@@ -288,6 +293,22 @@ export function Settings({ open, onClose }: SettingsProps) {
           }
           sx={{ marginLeft: "-8px" }}
           label={<Typography variant="caption">Multiple Outputs</Typography>}
+        />
+      </FormGroup>
+      <FormGroup>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={settings.hideEmptyVoiceChannels}
+              onChange={handleHideEmptyVoiceChannelsToggle}
+            />
+          }
+          sx={{ marginLeft: "-8px" }}
+          label={
+            <Typography variant="caption">
+              Only Show Occupied Voice Channels
+            </Typography>
+          }
         />
       </FormGroup>
       <FormGroup>

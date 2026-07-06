@@ -88,11 +88,20 @@ const migrations: any = {
       },
     };
   },
+  8: (state: RootState): RootState => {
+    return {
+      ...state,
+      settings: {
+        ...state.settings,
+        hideEmptyVoiceChannels: false,
+      },
+    };
+  },
 };
 
 const persistConfig = {
   key: "root",
-  version: 7,
+  version: 8,
   storage,
   whitelist: ["bookmarks", "settings"],
   migrate: createMigrate(migrations, { debug: false }),

@@ -5,6 +5,7 @@ import {
   EmbedBuilder,
   Events,
   GatewayIntentBits,
+  GuildChannel,
   Interaction,
   REST,
   Routes,
@@ -22,10 +23,17 @@ import { TunaTrackData } from "../tuna/youtubeMusicMetadata";
 import { fetchArtistImage } from "../tuna/artistImage";
 import { YoutubeMusicTracker } from "../tuna/YoutubeMusicTracker";
 
+type VoiceChannelMember = {
+  id: string;
+  name: string;
+  avatarUrl: string;
+};
+
 type VoiceChannel = {
   id: string;
   name: string;
   position: number;
+  members: VoiceChannelMember[];
 };
 
 type Guild = {
@@ -149,10 +157,22 @@ async function enrichTrackArtistImage(
   return { ...track, artist_image: image };
 }
 
+function getChannelMembers(channel: GuildChannel): VoiceChannelMember[] {
+  if (!channel.isVoiceBased()) {
+    return [];
+  }
+  return [...channel.members.values()].map((member) => ({
+    id: member.id,
+    name: member.displayName,
+    avatarUrl: member.displayAvatarURL({ extension: "png", size: 32 }),
+  }));
+}
+
 export class DiscordBroadcast {
   window: BrowserWindow;
   client?: Client;
   private youtubeMusicTracker: YoutubeMusicTracker;
+  private voiceStateDebounceTimer?: ReturnType<typeof setTimeout>;
   audioPlayer = createAudioPlayer({
     behaviors: {
       noSubscriber: NoSubscriberBehavior.Play,
@@ -209,6 +229,7 @@ export class DiscordBroadcast {
               id: channel.id,
               name: channel.name,
               position: channel.rawPosition,
+              members: getChannelMembers(channel),
             });
           }
         });
@@ -223,12 +244,35 @@ export class DiscordBroadcast {
   }
 
   private _teardownClient() {
+    if (this.voiceStateDebounceTimer) {
+      clearTimeout(this.voiceStateDebounceTimer);
+      this.voiceStateDebounceTimer = undefined;
+    }
     if (this.client) {
       this.client.off(Events.InteractionCreate, this._handleInteractionCreate);
+      this.client.off(Events.VoiceStateUpdate, this._handleVoiceStateUpdate);
       this.client.destroy();
       this.client = undefined;
     }
   }
+
+  _handleVoiceStateUpdate = () => {
+    if (this.voiceStateDebounceTimer) {
+      clearTimeout(this.voiceStateDebounceTimer);
+    }
+    this.voiceStateDebounceTimer = setTimeout(async () => {
+      this.voiceStateDebounceTimer = undefined;
+      if (!this.client) {
+        return;
+      }
+      try {
+        const guilds = await this._fetchGuilds();
+        this.window.webContents.send("DISCORD_GUILDS", guilds);
+      } catch (err) {
+        console.error("Failed to refresh guilds after voice state update:", err);
+      }
+    }, 200);
+  };
 
   private async _registerSlashCommands(token: string) {
     if (!this.client?.user) {
@@ -290,6 +334,7 @@ export class DiscordBroadcast {
         intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
       });
       this.client.on(Events.InteractionCreate, this._handleInteractionCreate);
+      this.client.on(Events.VoiceStateUpdate, this._handleVoiceStateUpdate);
       this.client.once(Events.ClientReady, async () => {
         const profile = this._getBotProfile();
         if (profile) {

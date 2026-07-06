@@ -1,8 +1,15 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
+export type VoiceChannelMember = {
+  id: string;
+  name: string;
+  avatarUrl: string;
+};
+
 export type VoiceChannel = {
   id: string;
   name: string;
+  members?: VoiceChannelMember[];
 };
 
 export type Guild = {
