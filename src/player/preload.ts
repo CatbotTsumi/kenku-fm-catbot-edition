@@ -6,7 +6,13 @@ import {
   SoundboardsReply,
 } from "../types/player";
 
-type Channel =
+type OpenUrlPayload = {
+  url: string;
+  title: string;
+  icon: string;
+};
+
+type ReceiveChannel =
   | "PLAYER_REMOTE_PLAYLIST_GET_ALL_REQUEST"
   | "PLAYER_REMOTE_PLAYLIST_PLAY"
   | "PLAYER_REMOTE_PLAYLIST_PLAYBACK_REQUEST"
@@ -22,9 +28,15 @@ type Channel =
   | "PLAYER_REMOTE_SOUNDBOARD_GET_ALL_REQUEST"
   | "PLAYER_REMOTE_SOUNDBOARD_PLAY"
   | "PLAYER_REMOTE_SOUNDBOARD_STOP"
-  | "PLAYER_REMOTE_SOUNDBOARD_PLAYBACK_REQUEST";
+  | "PLAYER_REMOTE_SOUNDBOARD_PLAYBACK_REQUEST"
+  | "PLAYER_BOOKMARKS_SYNC"
+  | "DISCORD_READY"
+  | "DISCORD_DISCONNECTED"
+  | "DISCORD_GUILDS"
+  | "DISCORD_CHANNEL_JOINED"
+  | "DISCORD_CHANNEL_LEFT";
 
-const validChannels: Channel[] = [
+const validReceiveChannels: ReceiveChannel[] = [
   "PLAYER_REMOTE_PLAYLIST_GET_ALL_REQUEST",
   "PLAYER_REMOTE_PLAYLIST_PLAY",
   "PLAYER_REMOTE_PLAYLIST_PLAYBACK_REQUEST",
@@ -41,17 +53,23 @@ const validChannels: Channel[] = [
   "PLAYER_REMOTE_SOUNDBOARD_PLAY",
   "PLAYER_REMOTE_SOUNDBOARD_STOP",
   "PLAYER_REMOTE_SOUNDBOARD_PLAYBACK_REQUEST",
+  "PLAYER_BOOKMARKS_SYNC",
+  "DISCORD_READY",
+  "DISCORD_DISCONNECTED",
+  "DISCORD_GUILDS",
+  "DISCORD_CHANNEL_JOINED",
+  "DISCORD_CHANNEL_LEFT",
 ];
 
 const api = {
-  on: (channel: Channel, callback: (...args: any[]) => any) => {
-    if (validChannels.includes(channel)) {
+  on: (channel: ReceiveChannel, callback: (...args: any[]) => any) => {
+    if (validReceiveChannels.includes(channel)) {
       const newCallback = (_: any, ...args: any[]) => callback(args);
       ipcRenderer.on(channel, newCallback);
     }
   },
-  removeAllListeners: (channel: Channel) => {
-    if (validChannels.includes(channel)) {
+  removeAllListeners: (channel: ReceiveChannel) => {
+    if (validReceiveChannels.includes(channel)) {
       ipcRenderer.removeAllListeners(channel);
     }
   },
@@ -69,7 +87,13 @@ const api = {
   },
   getPathForFile: (file: File) => {
     return webUtils.getPathForFile(file);
-  } 
+  },
+  openUrl: (payload: OpenUrlPayload) => {
+    ipcRenderer.send("PLAYER_OPEN_URL", payload);
+  },
+  joinChannel: (channelId: string) => {
+    ipcRenderer.send("DISCORD_JOIN_CHANNEL", channelId);
+  },
 };
 
 declare global {

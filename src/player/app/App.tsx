@@ -21,6 +21,9 @@ import { Soundboard } from "../features/soundboards/Soundboard";
 import { useSoundboardPlayback } from "../features/soundboards/useSoundboardPlayback";
 import { SoundboardRemote } from "../features/soundboards/SoundboardRemote";
 import { SoundboardPlaybackSync } from "../features/soundboards/SoundboardPlaybackSync";
+import { Bookmarks } from "../features/bookmarks/Bookmarks";
+import { useVoiceSync } from "../features/voice/useVoiceSync";
+import { useBookmarkSync } from "../features/bookmarks/useBookmarkSync";
 
 const WallPaper = styled("div")({
   position: "fixed",
@@ -42,6 +45,9 @@ export function App() {
 
   const playlist = usePlaylistPlayback(handleError);
   const soundboard = useSoundboardPlayback(handleError);
+
+  useVoiceSync();
+  useBookmarkSync();
 
   return (
     <>
@@ -71,6 +77,7 @@ export function App() {
             <Soundboard onPlay={soundboard.play} onStop={soundboard.stop} />
           }
         />
+        <Route path="bookmarks" element={<Bookmarks />} />
       </Routes>
       <Player
         onPlaylistSeek={playlist.seek}

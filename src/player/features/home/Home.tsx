@@ -27,6 +27,8 @@ import { Track } from "../playlists/playlistsSlice";
 import { SoundboardAdd } from "../soundboards/SoundboardAdd";
 import { SoundboardItem } from "../soundboards/SoundboardItem";
 import { Sound } from "../soundboards/soundboardsSlice";
+import { ActiveVoiceChats } from "../voice/ActiveVoiceChats";
+import { BookmarkItem } from "../bookmarks/BookmarkItem";
 
 const PlaylistsLink = React.forwardRef<
   HTMLAnchorElement,
@@ -38,6 +40,11 @@ const SoundboardsLink = React.forwardRef<
   Omit<RouterLinkProps, "to">
 >((props, ref) => <RouterLink ref={ref} to="/soundboards" {...props} />);
 
+const BookmarksLink = React.forwardRef<
+  HTMLAnchorElement,
+  Omit<RouterLinkProps, "to">
+>((props, ref) => <RouterLink ref={ref} to="/bookmarks" {...props} />);
+
 type HomeProps = {
   onPlayTrack: (track: Track) => void;
   onPlaySound: (sound: Sound) => void;
@@ -47,6 +54,7 @@ export function Home({ onPlayTrack, onPlaySound }: HomeProps) {
   const navigate = useNavigate();
   const playlists = useSelector((state: RootState) => state.playlists);
   const soundboards = useSelector((state: RootState) => state.soundboards);
+  const bookmarks = useSelector((state: RootState) => state.bookmarks.bookmarks);
 
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down("lg"));
@@ -57,6 +65,9 @@ export function Home({ onPlayTrack, onPlaySound }: HomeProps) {
   const soundboardItems = soundboards.soundboards.allIds
     .slice(0, isSmall ? 4 : 8)
     .map((id) => soundboards.soundboards.byId[id]);
+  const bookmarkItems = bookmarks.allIds
+    .slice(0, isSmall ? 4 : 8)
+    .map((id) => bookmarks.byId[id]);
 
   const [playlistAddOpen, setPlaylistAddOpen] = useState(false);
   const [soundboardAddOpen, setSoundboardAddOpen] = useState(false);
@@ -71,6 +82,41 @@ export function Home({ onPlayTrack, onPlaySound }: HomeProps) {
         mb: "248px",
       }}
     >
+      <ActiveVoiceChats />
+      <Card>
+        <CardContent>
+          <Stack
+            gap={1}
+            justifyContent="space-between"
+            alignItems="center"
+            direction="row"
+          >
+            <Typography variant="h5" component="div">
+              Bookmarks
+            </Typography>
+            <Box sx={{ flexGrow: 1 }} />
+            <Link color="inherit" underline="hover" component={BookmarksLink}>
+              See All
+            </Link>
+          </Stack>
+        </CardContent>
+        <CardContent>
+          {bookmarkItems.length === 0 ? (
+            <Typography color="text.secondary">
+              No bookmarks yet. Bookmark a tab from the browser tab bar or add
+              one in the sidebar.
+            </Typography>
+          ) : (
+            <Grid container spacing={2}>
+              {bookmarkItems.map((bookmark) => (
+                <Grid xs={6} sm={4} md={3} item key={bookmark.id}>
+                  <BookmarkItem bookmark={bookmark} />
+                </Grid>
+              ))}
+            </Grid>
+          )}
+        </CardContent>
+      </Card>
       <Card>
         <CardContent>
           <Stack

@@ -19,6 +19,8 @@ import {
   setBotProfile,
   setStatus,
 } from "../features/connection/connectionSlice";
+import { useBookmarkPlayerSync } from "../features/bookmarks/useBookmarkPlayerSync";
+import { usePlayerOpenUrlRequest } from "../features/bookmarks/usePlayerOpenUrlRequest";
 
 function withBrowserProfile(base: string): string {
   const profile = window.kenku.browserProfile;
@@ -47,6 +49,9 @@ export function App() {
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
   const [fatalError, setFatalError] = useState<string>();
+
+  useBookmarkPlayerSync();
+  usePlayerOpenUrlRequest();
 
   useEffect(() => {
     document.title = DEFAULT_TITLE;

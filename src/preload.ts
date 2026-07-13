@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from "electron";
 
 import { BrowserViewManagerPreload } from "./preload/managers/BrowserViewManagerPreload";
 
+import { BookmarksCollection } from "./types/bookmark";
+
 const viewManager = new BrowserViewManagerPreload();
 
 type Channel =
@@ -27,7 +29,8 @@ type Channel =
   | "BROWSER_VIEW_RESET_ZOOM"
   | "PLAYER_REMOTE_ENABLED"
   | "UPDATE_AVAILABLE"
-  | "UPDATE_OFFICIAL_CLEAR";
+  | "UPDATE_OFFICIAL_CLEAR"
+  | "PLAYER_OPEN_URL_REQUEST";
 
 const validChannels: Channel[] = [
   "ERROR",
@@ -53,6 +56,7 @@ const validChannels: Channel[] = [
   "PLAYER_REMOTE_ENABLED",
   "UPDATE_AVAILABLE",
   "UPDATE_OFFICIAL_CLEAR",
+  "PLAYER_OPEN_URL_REQUEST",
 ];
 
 // Capture audio when new views are loaded
@@ -209,6 +213,9 @@ const api = {
   platform: ipcRenderer.sendSync("GET_PLATFORM") as string,
   version: ipcRenderer.sendSync("GET_VERSION") as string,
   browserProfile: ipcRenderer.sendSync("GET_BROWSER_PROFILE") as string,
+  syncBookmarksToPlayer: (bookmarks: BookmarksCollection) => {
+    ipcRenderer.send("PLAYER_BOOKMARKS_SYNC", bookmarks);
+  },
 };
 
 declare global {

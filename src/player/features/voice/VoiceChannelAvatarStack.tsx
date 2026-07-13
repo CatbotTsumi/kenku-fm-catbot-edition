@@ -29,7 +29,7 @@ export function VoiceChannelAvatarStack({
   const overflow = members.length - MAX_VISIBLE;
   const borderColor = selected
     ? theme.palette.action.selected
-    : theme.palette.background.default;
+    : theme.palette.background.paper;
 
   const avatarSx = (index: number, total: number) => ({
     width: AVATAR_SIZE,

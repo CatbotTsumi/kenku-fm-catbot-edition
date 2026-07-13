@@ -1,18 +1,8 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
-export interface Bookmark {
-  url: string;
-  icon: string;
-  title: string;
-  id: string;
-}
+import { Bookmark, BookmarksState } from "../../../types/bookmark";
 
-export interface BookmarksState {
-  bookmarks: {
-    byId: Record<string, Bookmark>;
-    allIds: string[];
-  };
-}
+export type { Bookmark, BookmarksState };
 
 const initialState: BookmarksState = {
   bookmarks: {

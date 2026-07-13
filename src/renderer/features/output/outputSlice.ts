@@ -1,23 +1,8 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
-export type VoiceChannelMember = {
-  id: string;
-  name: string;
-  avatarUrl: string;
-};
+import { Guild } from "../../../types/discord";
 
-export type VoiceChannel = {
-  id: string;
-  name: string;
-  members?: VoiceChannelMember[];
-};
-
-export type Guild = {
-  id: string;
-  name: string;
-  icon: string;
-  voiceChannels: VoiceChannel[];
-};
+export type { Guild, VoiceChannel, VoiceChannelMember } from "../../../types/discord";
 
 export interface OutputState {
   guilds: Guild[];

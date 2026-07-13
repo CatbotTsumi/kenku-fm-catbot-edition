@@ -22,6 +22,7 @@ import { APP_DISPLAY_NAME } from "../../constants/appName";
 import { TunaTrackData } from "../tuna/youtubeMusicMetadata";
 import { fetchArtistImage } from "../tuna/artistImage";
 import { YoutubeMusicTracker } from "../tuna/YoutubeMusicTracker";
+import { PlayerManager } from "../managers/PlayerManager";
 
 type VoiceChannelMember = {
   id: string;
@@ -172,6 +173,7 @@ export class DiscordBroadcast {
   window: BrowserWindow;
   client?: Client;
   private youtubeMusicTracker: YoutubeMusicTracker;
+  private playerManager?: PlayerManager;
   private voiceStateDebounceTimer?: ReturnType<typeof setTimeout>;
   audioPlayer = createAudioPlayer({
     behaviors: {
@@ -181,9 +183,14 @@ export class DiscordBroadcast {
     },
   });
 
-  constructor(window: BrowserWindow, youtubeMusicTracker: YoutubeMusicTracker) {
+  constructor(
+    window: BrowserWindow,
+    youtubeMusicTracker: YoutubeMusicTracker,
+    playerManager?: PlayerManager,
+  ) {
     this.window = window;
     this.youtubeMusicTracker = youtubeMusicTracker;
+    this.playerManager = playerManager;
     ipcMain.on("DISCORD_CONNECT", this._handleConnect);
     ipcMain.on("DISCORD_DISCONNECT", this._handleDisconnect);
     ipcMain.on("DISCORD_JOIN_CHANNEL", this._handleJoinChannel);
@@ -203,6 +210,20 @@ export class DiscordBroadcast {
 
   _resetWindowTitle() {
     this.window.setTitle(DEFAULT_WINDOW_TITLE);
+  }
+
+  private _sendDiscordEvent(channel: string, ...args: unknown[]) {
+    this.window.webContents.send(channel, ...args);
+    this.playerManager?.forwardToPlayer(channel, ...args);
+  }
+
+  private _replyDiscordEvent(
+    event: Electron.IpcMainEvent,
+    channel: string,
+    ...args: unknown[]
+  ) {
+    event.reply(channel, ...args);
+    this.playerManager?.forwardToPlayer(channel, ...args);
   }
 
   _getBotProfile(): DiscordBotProfile | null {
@@ -267,7 +288,7 @@ export class DiscordBroadcast {
       }
       try {
         const guilds = await this._fetchGuilds();
-        this.window.webContents.send("DISCORD_GUILDS", guilds);
+        this._sendDiscordEvent("DISCORD_GUILDS", guilds);
       } catch (err) {
         console.error("Failed to refresh guilds after voice state update:", err);
       }
@@ -323,7 +344,7 @@ export class DiscordBroadcast {
   _handleConnect = async (event: Electron.IpcMainEvent, token: string) => {
     if (!token) {
       this._resetWindowTitle();
-      event.reply("DISCORD_DISCONNECTED");
+      this._replyDiscordEvent(event, "DISCORD_DISCONNECTED");
       event.reply("ERROR", "Error connecting to bot: Invalid token");
       return;
     }
@@ -339,9 +360,9 @@ export class DiscordBroadcast {
         const profile = this._getBotProfile();
         if (profile) {
           this.window.setTitle(formatAppTitle(profile.name));
-          event.reply("DISCORD_READY", profile);
+          this._replyDiscordEvent(event, "DISCORD_READY", profile);
         } else {
-          event.reply("DISCORD_READY");
+          this._replyDiscordEvent(event, "DISCORD_READY");
         }
         event.reply("MESSAGE", "Connected");
         try {
@@ -350,26 +371,26 @@ export class DiscordBroadcast {
           console.error("Failed to register slash commands:", err);
         }
         const guilds = await this._fetchGuilds();
-        event.reply("DISCORD_GUILDS", guilds);
+        this._replyDiscordEvent(event, "DISCORD_GUILDS", guilds);
       });
       this.client.on("error", (err) => {
         this._resetWindowTitle();
-        event.reply("DISCORD_DISCONNECTED");
+        this._replyDiscordEvent(event, "DISCORD_DISCONNECTED");
         event.reply("ERROR", `Error connecting to bot: ${err.message}`);
       });
       await this.client.login(token);
     } catch (err) {
       this._resetWindowTitle();
-      event.reply("DISCORD_DISCONNECTED");
+      this._replyDiscordEvent(event, "DISCORD_DISCONNECTED");
       event.reply("ERROR", `Error connecting to bot: ${err.message}`);
     }
   };
 
   _handleDisconnect = async (event: Electron.IpcMainEvent) => {
     this._resetWindowTitle();
-    event.reply("DISCORD_DISCONNECTED");
-    event.reply("DISCORD_GUILDS", []);
-    event.reply("DISCORD_CHANNEL_JOINED", "local");
+    this._replyDiscordEvent(event, "DISCORD_DISCONNECTED");
+    this._replyDiscordEvent(event, "DISCORD_GUILDS", []);
+    this._replyDiscordEvent(event, "DISCORD_CHANNEL_JOINED", "local");
     this._teardownClient();
   };
 
@@ -387,11 +408,11 @@ export class DiscordBroadcast {
             adapterCreator: channel.guild.voiceAdapterCreator,
           });
           connection.subscribe(this.audioPlayer);
-          event.reply("DISCORD_CHANNEL_JOINED", channelId);
+          this._replyDiscordEvent(event, "DISCORD_CHANNEL_JOINED", channelId);
           connection.on("error", (e) => {
             console.error(e);
             connection.destroy();
-            event.reply("DISCORD_CHANNEL_LEFT", channelId);
+            this._replyDiscordEvent(event, "DISCORD_CHANNEL_LEFT", channelId);
             event.reply(
               "ERROR",
               `Error connecting to voice channel: ${e.message}`,
@@ -399,7 +420,7 @@ export class DiscordBroadcast {
           });
         } catch (e) {
           console.error(e);
-          event.reply("DISCORD_CHANNEL_LEFT", channelId);
+          this._replyDiscordEvent(event, "DISCORD_CHANNEL_LEFT", channelId);
           event.reply(
             "ERROR",
             `Error connecting to voice channel: ${e.message}`,
@@ -407,7 +428,7 @@ export class DiscordBroadcast {
         }
       }
     } else {
-      event.reply("DISCORD_CHANNEL_LEFT", channelId);
+      this._replyDiscordEvent(event, "DISCORD_CHANNEL_LEFT", channelId);
       event.reply(
         "ERROR",
         `Unable to join voice channel. This channel might be full or this bot might not have permission to join.`,
@@ -425,6 +446,7 @@ export class DiscordBroadcast {
       connection.destroy();
     }
     event.reply("DISCORD_CHANNEL_LEFT", channelId);
+    this.playerManager?.forwardToPlayer("DISCORD_CHANNEL_LEFT", channelId);
   };
 
   _handleLeaveGuild = async (
@@ -447,12 +469,12 @@ export class DiscordBroadcast {
       if (connection) {
         const channelId = connection.joinConfig.channelId;
         connection.destroy();
-        event.reply("DISCORD_CHANNEL_LEFT", channelId);
+        this._replyDiscordEvent(event, "DISCORD_CHANNEL_LEFT", channelId);
       }
 
       await guild.leave();
       const guilds = await this._fetchGuilds();
-      event.reply("DISCORD_GUILDS", guilds);
+      this._replyDiscordEvent(event, "DISCORD_GUILDS", guilds);
       event.reply("MESSAGE", `Left ${guild.name}`);
     } catch (err) {
       event.reply(

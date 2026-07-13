@@ -3,6 +3,8 @@ import playlistsReducer from "../features/playlists/playlistsSlice";
 import soundboardsReducer from "../features/soundboards/soundboardsSlice";
 import playlsitPlaybackReducer from "../features/playlists/playlistPlaybackSlice";
 import soundboardPlaybackReducer from "../features/soundboards/soundboardPlaybackSlice";
+import voiceReducer from "../features/voice/voiceSlice";
+import bookmarksReducer from "../features/bookmarks/bookmarksSlice";
 
 import {
   persistStore,
@@ -31,6 +33,8 @@ const rootReducer = combineReducers({
     playlsitPlaybackReducer
   ),
   soundboardPlayback: soundboardPlaybackReducer,
+  voice: voiceReducer,
+  bookmarks: bookmarksReducer,
 });
 
 const persistConfig = {

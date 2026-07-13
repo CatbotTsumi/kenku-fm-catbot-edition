@@ -9,7 +9,7 @@ import { WindowManager } from "./WindowManager";
 
 export class SessionManager {
   private playbackManager: PlaybackManager;
-  private playerManager: PlayerManager;
+  readonly playerManager: PlayerManager;
   private viewManager: BrowserViewManagerMain;
   private windowManager: WindowManager;
   private youtubeMusicTracker: YoutubeMusicTracker;
@@ -18,9 +18,13 @@ export class SessionManager {
   constructor(window: BrowserWindow) {
     this.viewManager = new BrowserViewManagerMain(window);
     this.youtubeMusicTracker = new YoutubeMusicTracker(this.viewManager);
-    this.playbackManager = new PlaybackManager(window, this.youtubeMusicTracker);
+    this.playerManager = new PlayerManager(window);
+    this.playbackManager = new PlaybackManager(
+      window,
+      this.youtubeMusicTracker,
+      this.playerManager,
+    );
     this.windowManager = new WindowManager(window);
-    this.playerManager = new PlayerManager();
 
     if (isStreamBrowserProfile()) {
       this.tunaManager = new TunaManager(this.youtubeMusicTracker);
