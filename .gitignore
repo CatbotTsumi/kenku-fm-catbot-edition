@@ -58,7 +58,12 @@ typings/
 .yarn-integrity
 
 # dotenv environment variables file
+.env
 .env.test
+
+# Local IDE / agent config (not for repo)
+.cursor/
+AGENTS.md
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
